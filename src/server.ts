@@ -1,6 +1,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'http';
 import { request as httpsRequest } from 'https';
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from 'fs';
+import { execSync } from 'child_process';
 import { dirname, join, relative, resolve } from 'path';
 import { randomBytes, createCipheriv, createDecipheriv } from 'crypto';
 import { fileURLToPath } from 'url';
@@ -11,10 +12,15 @@ import type { NodeValue, WorkflowGraph, WorkflowProgressEvent } from './types.js
 
 // Read version from package.json at startup
 const APP_VERSION = (() => {
-  try {
-    const pkgPath = join(dirname(fileURLToPath(import.meta.url)), '..', 'package.json');
-    return JSON.parse(readFileSync(pkgPath, 'utf-8')).version || 'unknown';
-  } catch { return 'unknown'; }
+  const dir = dirname(fileURLToPath(import.meta.url));
+  // Try parent (dev: dist/../package.json) then sibling (packaged: server/dist/package.json)
+  for (const candidate of [join(dir, '..', 'package.json'), join(dir, 'package.json')]) {
+    try {
+      const v = JSON.parse(readFileSync(candidate, 'utf-8')).version;
+      if (v) return v;
+    } catch { /* try next */ }
+  }
+  return 'unknown';
 })();
 
 // ============================================
@@ -241,8 +247,12 @@ function findProjectRoot(startDir: string): string {
 }
 
 function assertPathWithinRoot(absolutePath: string, root: string): void {
-  const normalizedRoot = root.endsWith('/') ? root : `${root}/`;
-  if (!(absolutePath === root || absolutePath.startsWith(normalizedRoot))) {
+  // Normalize separators for cross-platform comparison (Windows uses \)
+  const norm = (p: string) => p.replace(/\\/g, '/');
+  const normRoot = norm(root);
+  const normPath = norm(absolutePath);
+  const rootPrefix = normRoot.endsWith('/') ? normRoot : `${normRoot}/`;
+  if (!(normPath === normRoot || normPath.startsWith(rootPrefix))) {
     throw new Error('Path is outside workspace root.');
   }
 }
@@ -265,7 +275,7 @@ function buildStudioHtml(): string {
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Claude Flow Workflow Studio</title>
+  <title>Workflow Studio</title>
   <style>
     :root { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
     html, body { height: 100%; }
@@ -430,6 +440,25 @@ function buildStudioHtml(): string {
             </div>
             <div style="border-top:1px solid #272b36;margin-top:10px;padding-top:10px;">
               <a href="https://github.com/MattGrdinic/workflow-studio" target="_blank" style="color:#4f7cff;text-decoration:none;font-size:12px;">GitHub</a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Claude CLI status banner -->
+      <div id="claudeBanner" style="display:none;padding:10px 14px;border-radius:8px;margin-bottom:8px;font-size:13px;line-height:1.5;"></div>
+
+      <!-- First-run welcome banner -->
+      <div id="welcomeBanner" style="display:none;padding:14px 18px;background:#1a1f2e;border:1px solid #343a4d;border-radius:8px;margin-bottom:8px;font-size:13px;line-height:1.6;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+          <div>
+            <div style="font-weight:600;color:#e8eaf0;margin-bottom:6px;">Welcome to Workflow Studio</div>
+            <div style="color:#a6adbd;margin-bottom:10px;">To get started, connect at least one external service:</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button onclick="document.getElementById('welcomeBanner').style.display='none';showJiraConfigModal();" style="padding:6px 14px;font-size:12px;background:#4f7cff;color:#fff;border:none;border-radius:6px;cursor:pointer;">Configure Jira</button>
+              <button onclick="document.getElementById('welcomeBanner').style.display='none';showAdoConfigModal();" style="padding:6px 14px;font-size:12px;background:#1a1f2e;color:#a6adbd;border:1px solid #343a4d;border-radius:6px;cursor:pointer;">Configure Azure DevOps</button>
+              <button onclick="document.getElementById('welcomeBanner').style.display='none';showSlackConfigModal();" style="padding:6px 14px;font-size:12px;background:#1a1f2e;color:#a6adbd;border:1px solid #343a4d;border-radius:6px;cursor:pointer;">Configure Slack</button>
+              <button onclick="localStorage.setItem('ws_welcome_dismissed','1');document.getElementById('welcomeBanner').style.display='none';" style="padding:6px 14px;font-size:12px;background:transparent;color:#6b7394;border:none;cursor:pointer;">Dismiss</button>
             </div>
           </div>
         </div>
@@ -4639,9 +4668,43 @@ function buildStudioHtml(): string {
     loadMeta().then(function() {
       attachDetailsListeners();
       restoreUiState();
+      checkStartupHealth();
     }).catch((error) => {
       resultEl.textContent = 'Failed to load metadata: ' + String(error);
     });
+
+    async function checkStartupHealth() {
+      // Show welcome banner on first run (no configs exist yet)
+      if (!localStorage.getItem('ws_welcome_dismissed')) {
+        try {
+          var jiraRes = await fetch('/api/jira-config?path=' + encodeURIComponent(getJiraConfigPath()));
+          var jiraData = await jiraRes.json();
+          if (!jiraData.exists) {
+            document.getElementById('welcomeBanner').style.display = 'block';
+          }
+        } catch(e) { /* ignore */ }
+      }
+
+      // Check Claude CLI status
+      try {
+        var claudeRes = await fetch('/api/claude-status');
+        var claude = await claudeRes.json();
+        var banner = document.getElementById('claudeBanner');
+        if (!claude.available) {
+          banner.style.display = 'block';
+          banner.style.background = '#2d1a1a';
+          banner.style.border = '1px solid #5c2a2a';
+          banner.style.color = '#f0a0a0';
+          banner.innerHTML = '<b>Claude CLI not found.</b> AI-powered nodes require the <code style="background:#1a1010;padding:2px 5px;border-radius:3px;">claude</code> binary on PATH. <a href="https://docs.anthropic.com/en/docs/claude-code/overview" target="_blank" style="color:#69a0ff;">Install Claude Code</a>';
+        } else if (!claude.authenticated) {
+          banner.style.display = 'block';
+          banner.style.background = '#2d2a1a';
+          banner.style.border = '1px solid #5c5a2a';
+          banner.style.color = '#f0e0a0';
+          banner.innerHTML = '<b>Claude CLI found</b> (' + claude.version + ') but authentication failed. Run: <code style="background:#1a1a10;padding:2px 5px;border-radius:3px;cursor:pointer;" onclick="navigator.clipboard.writeText(this.textContent)">aws sso login --sso-session HearstOktaAuthenticated</code> <span style="font-size:11px;color:#a09060;">(click to copy)</span>';
+        }
+      } catch(e) { /* ignore */ }
+    }
   </script>
 </body>
 </html>`;
@@ -5298,6 +5361,24 @@ export async function startServer(opts: StartOptions = {}): Promise<void> {
         sendJson(res, 200, testResult.ok ? { success: true } : { success: false, status: testResult.status, error: testResult.body });
         return;
       } catch (error) { sendJson(res, 500, { success: false, error: error instanceof Error ? error.message : String(error) }); return; }
+    }
+
+    /* -- Claude CLI health check ------------------------------------- */
+
+    if (req.method === 'GET' && url.pathname === '/api/claude-status') {
+      try {
+        const version = execSync('claude --version', { encoding: 'utf-8', stdio: 'pipe', timeout: 5000, windowsHide: true }).trim();
+        // Quick probe to check if auth is working (times out fast if SSO expired)
+        try {
+          execSync('claude -p "respond with ok" --max-turns 1', { encoding: 'utf-8', stdio: 'pipe', timeout: 15000, windowsHide: true });
+          sendJson(res, 200, { available: true, version, authenticated: true });
+        } catch {
+          sendJson(res, 200, { available: true, version, authenticated: false });
+        }
+      } catch {
+        sendJson(res, 200, { available: false, version: null, authenticated: false });
+      }
+      return;
     }
 
     sendJson(res, 404, { error: 'Not Found' });
