@@ -154,16 +154,28 @@ Remove-Item $tmpZip -Force -ErrorAction SilentlyContinue
 Remove-Item $tmpDir -Recurse -Force -ErrorAction SilentlyContinue
 
 # ---------------------------------------------------------------------------
+# Save version marker
+# ---------------------------------------------------------------------------
+$versionLabel = if ($tag) { $tag } else { "main" }
+Set-Content -Path "$InstallDir\.installed-version" -Value $versionLabel -Encoding ASCII
+
+# ---------------------------------------------------------------------------
 # Done
 # ---------------------------------------------------------------------------
 Write-Host ""
-Write-Info "workflow-studio installed successfully!"
+Write-Host "  Workflow Studio ($versionLabel) installed successfully!" -ForegroundColor Green
 Write-Host ""
-Write-Host "  Run it with:"
-Write-Host "    workflow-studio" -ForegroundColor White
+Write-Host "  Get started:" -ForegroundColor White
+Write-Host "    workflow-studio              Launch the browser UI at http://127.0.0.1:4317"
+Write-Host "    workflow-studio --setup      Configure Jira, Slack & ADO credentials (or do it in the UI)"
+Write-Host "    workflow-studio --help       Show all options"
 Write-Host ""
-Write-Host "  Or with options:"
-Write-Host "    workflow-studio --help" -ForegroundColor White
+Write-Host "  Update to latest version:" -ForegroundColor White
+Write-Host "    irm https://raw.githubusercontent.com/$Repo/main/install.ps1 | iex"
+Write-Host ""
+Write-Host "  Uninstall:" -ForegroundColor White
+Write-Host "    Remove-Item -Recurse -Force `"$InstallDir`""
+Write-Host "    # Then remove '$InstallDir' from your PATH in System Settings > Environment Variables"
 Write-Host ""
 Write-Host "  NOTE: You may need to restart your terminal for PATH changes to take effect." -ForegroundColor Yellow
 Write-Host ""

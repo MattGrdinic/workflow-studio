@@ -149,14 +149,25 @@ sudo ln -sf "$INSTALL_DIR/dist/cli.js" "$BIN_LINK"
 sudo chmod +x "$INSTALL_DIR/dist/cli.js"
 
 # ---------------------------------------------------------------------------
+# Save version marker (used for update checks)
+# ---------------------------------------------------------------------------
+VERSION_LABEL="${LATEST_TAG:-main}"
+echo "$VERSION_LABEL" | sudo tee "$INSTALL_DIR/.installed-version" > /dev/null
+
+# ---------------------------------------------------------------------------
 # Done
 # ---------------------------------------------------------------------------
 printf "\n"
-info "workflow-studio installed successfully!"
+printf "\033[1;32m  Workflow Studio (%s) installed successfully!\033[0m\n" "$VERSION_LABEL"
 printf "\n"
-printf "  Run it with:\n"
-printf "    \033[1mworkflow-studio\033[0m\n"
+printf "  \033[1mGet started:\033[0m\n"
+printf "    workflow-studio              Launch the browser UI at http://127.0.0.1:4317\n"
+printf "    workflow-studio --setup      Configure Jira, Slack & ADO credentials (or do it in the UI)\n"
+printf "    workflow-studio --help       Show all options\n"
 printf "\n"
-printf "  Or with options:\n"
-printf "    \033[1mworkflow-studio --help\033[0m\n"
+printf "  \033[1mUpdate to latest version:\033[0m\n"
+printf "    curl -fsSL https://raw.githubusercontent.com/$REPO/main/install.sh | sh\n"
+printf "\n"
+printf "  \033[1mUninstall:\033[0m\n"
+printf "    sudo rm -rf $INSTALL_DIR $BIN_LINK\n"
 printf "\n"
