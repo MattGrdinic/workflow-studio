@@ -12,50 +12,49 @@ npm start
 
 Open http://127.0.0.1:4317 and configure your credentials (Jira, Slack, ADO) in the browser UI.
 
-## Day-to-Day Development
+## Development
 
 ```bash
-# 1. Create a feature branch
-git checkout -b my-feature
-
-# 2. Make your changes, then build and run locally
-npm run build
-npm start
-
-# 3. When happy, commit and push
-git add .
-git commit -m "Description of changes"
-git push origin my-feature
+git checkout -b my-feature    # 1. Create a branch
+npm run build && npm start    # 2. Build and test locally
+git add . && git commit       # 3. Commit your changes
+git push origin my-feature    # 4. Push and open a PR
 ```
 
-## Releasing a Desktop App
+## Releasing
 
-When you're ready to distribute a new version:
+Releases are fully automated. When you merge to `main`:
 
-```bash
-# 1. Build the desktop app (generates icons + bundles everything)
-npm run electron:dist:mac    # macOS .dmg
-npm run electron:dist:win    # Windows installer
+1. Bump the `version` in `package.json` (e.g., `1.0.1`)
+2. Merge your PR to `main`
+3. GitHub Actions automatically builds Mac + Windows desktop apps and publishes a GitHub Release
 
-# 2. Tag the release
-git tag v1.x.x
-git push origin main --tags
-
-# 3. Create a GitHub Release and attach the files from release/
-```
-
-The built installers will be in the `release/` folder.
+That's it. No manual build steps, no tagging, no uploading.
 
 ### App Icon
 
-Drop your icon as `assets/icon-source.png` (square, at least 1024x1024). The build automatically generates the macOS and Windows icon formats from it.
+Drop your design as `assets/icon-source.png` (square, at least 1024x1024). The build generates macOS and Windows icons from it automatically.
 
-## Other Useful Commands
+## Installing (End Users)
+
+**macOS / Linux:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/MattGrdinic/workflow-studio/main/install.sh | sh
+```
+
+**Windows (PowerShell):**
+```powershell
+irm https://raw.githubusercontent.com/MattGrdinic/workflow-studio/main/install.ps1 | iex
+```
+
+Or download the desktop app directly from [Releases](https://github.com/MattGrdinic/workflow-studio/releases).
+
+## Other Commands
 
 ```bash
-npm run electron:dev          # Launch the desktop app locally (no packaging)
-npm start -- --port 8080      # Custom port
-npm start -- --debug          # Verbose logging
+npm run electron:dev             # Run the desktop app locally
+npm start -- --port 8080         # Custom port
+npm start -- --debug             # Verbose logging
 npm start -- --run -g plan.json  # Run a workflow without the UI
 ```
 
