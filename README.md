@@ -52,10 +52,11 @@ Or download the desktop app directly from [Releases](https://github.com/MattGrdi
 ## Other Commands
 
 ```bash
-npm run electron:dev             # Run the desktop app locally
-npm start -- --port 8080         # Custom port
-npm start -- --debug             # Verbose logging
-npm start -- --run -g plan.json  # Run a workflow without the UI
+npm run build && npm run electron:dev   # Build and run the desktop app locally
+npm run build && npm start              # Build and run in the browser
+npm start -- --port 8080                # Custom port
+npm start -- --debug                    # Verbose logging
+npm start -- --run -g plan.json         # Run a workflow without the UI
 ```
 
 ## Prerequisites

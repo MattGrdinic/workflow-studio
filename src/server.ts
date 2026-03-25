@@ -4696,12 +4696,6 @@ function buildStudioHtml(): string {
           banner.style.border = '1px solid #5c2a2a';
           banner.style.color = '#f0a0a0';
           banner.innerHTML = '<b>Claude CLI not found.</b> AI-powered nodes require the <code style="background:#1a1010;padding:2px 5px;border-radius:3px;">claude</code> binary on PATH. <a href="https://docs.anthropic.com/en/docs/claude-code/overview" target="_blank" style="color:#69a0ff;">Install Claude Code</a>';
-        } else if (!claude.authenticated) {
-          banner.style.display = 'block';
-          banner.style.background = '#2d2a1a';
-          banner.style.border = '1px solid #5c5a2a';
-          banner.style.color = '#f0e0a0';
-          banner.innerHTML = '<b>Claude CLI found</b> (' + claude.version + ') but authentication failed. Run: <code style="background:#1a1a10;padding:2px 5px;border-radius:3px;cursor:pointer;" onclick="navigator.clipboard.writeText(this.textContent)">aws sso login --sso-session HearstOktaAuthenticated</code> <span style="font-size:11px;color:#a09060;">(click to copy)</span>';
         }
       } catch(e) { /* ignore */ }
     }
@@ -5368,15 +5362,9 @@ export async function startServer(opts: StartOptions = {}): Promise<void> {
     if (req.method === 'GET' && url.pathname === '/api/claude-status') {
       try {
         const version = execSync('claude --version', { encoding: 'utf-8', stdio: 'pipe', timeout: 5000, windowsHide: true }).trim();
-        // Quick probe to check if auth is working (times out fast if SSO expired)
-        try {
-          execSync('claude -p "respond with ok" --max-turns 1', { encoding: 'utf-8', stdio: 'pipe', timeout: 15000, windowsHide: true });
-          sendJson(res, 200, { available: true, version, authenticated: true });
-        } catch {
-          sendJson(res, 200, { available: true, version, authenticated: false });
-        }
+        sendJson(res, 200, { available: true, version });
       } catch {
-        sendJson(res, 200, { available: false, version: null, authenticated: false });
+        sendJson(res, 200, { available: false, version: null });
       }
       return;
     }
