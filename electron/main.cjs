@@ -9,6 +9,7 @@ const SERVER_URL = `http://${HOST}:${PORT}`;
 
 let serverProcess = null;
 let mainWindow = null;
+let serverStderr = '';
 
 function getServerScript() {
   // In packaged app, resources are in the app.asar or unpacked directory
@@ -41,6 +42,7 @@ function startServer() {
   });
 
   serverProcess.stderr.on('data', (data) => {
+    serverStderr += data.toString();
     process.stderr.write(`[server] ${data}`);
   });
 
@@ -117,9 +119,12 @@ app.whenReady().then(async () => {
   try {
     await waitForServer();
   } catch (err) {
+    const detail = serverStderr
+      ? `\n\nServer output:\n${serverStderr.slice(-500)}`
+      : '';
     dialog.showErrorBox(
       'Workflow Studio',
-      'Failed to start the server. Please check the logs and try again.'
+      `Failed to start the server.${detail}`
     );
     app.quit();
     return;
