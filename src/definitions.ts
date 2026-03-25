@@ -720,8 +720,8 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   {
     type: 'io.writeFile',
     title: 'Save to File',
-    description: 'Writes text or JSON to a file on disk. Supports pretty-printing JSON.',
-    useCase: 'Typically the last node — saves workflow results to disk. The file is auto-loaded into the Workflow Output viewer after execution.',
+    description: 'Writes text or JSON to a file on disk. Supports markdown, Jira wiki markup, and pretty-printed JSON output formats.',
+    useCase: 'Typically the last node — saves workflow results to disk. The file is auto-loaded into the Workflow Output viewer after execution. In the desktop app, use the Browse button to choose a save location.',
     category: 'io',
     configSchema: [
       {
@@ -730,7 +730,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
         type: 'string',
         required: true,
         placeholder: 'data/Output/...',
-        hint: 'File path to write to, relative to the working directory or absolute. Parent directories are created automatically. Example: "output/results.json" or "reports/summary.md".',
+        hint: 'File path to write to, relative to the working directory or absolute. Parent directories are created automatically. In the desktop app, click Browse to use a file picker.',
       },
       {
         key: 'content',
@@ -741,17 +741,19 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
         hint: 'The text content to write. Use {{nodeId.outputKey}} refs to insert outputs from previous nodes. Example: "{{aiPrompt.text}}" to write an AI response to disk.',
       },
       {
-        key: 'prettyJson',
-        label: 'Pretty JSON',
-        type: 'boolean',
-        defaultValue: false,
-        hint: 'When enabled, if the content is valid JSON it will be formatted with 2-space indentation before writing. Useful when saving structured AI output.',
+        key: 'outputFormat',
+        label: 'Output Format',
+        type: 'string',
+        defaultValue: 'markdown',
+        options: ['markdown', 'jira', 'json', 'text'],
+        hint: '"markdown" writes as-is (default). "jira" converts markdown to Jira/Confluence wiki markup. "json" pretty-prints valid JSON. "text" strips all markdown formatting.',
       },
     ],
     outputSchema: [
       { key: 'path', type: 'string', description: 'Absolute path of written file' },
       { key: 'bytes', type: 'number', description: 'Bytes written' },
       { key: 'written', type: 'boolean', description: 'Always true on success' },
+      { key: 'format', type: 'string', description: 'Output format used' },
     ],
   },
   {

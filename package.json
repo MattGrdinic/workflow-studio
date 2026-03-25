@@ -43,6 +43,10 @@
         "from": "dist",
         "to": "server/dist",
         "filter": ["**/*"]
+      },
+      {
+        "from": "electron/preload.cjs",
+        "to": "electron/preload.cjs"
       }
     ],
     "mac": {

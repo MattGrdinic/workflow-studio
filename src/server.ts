@@ -348,8 +348,9 @@ function buildStudioHtml(): string {
     svg.edges > * { pointer-events: none; }
     svg.edges > .edge-hitbox { pointer-events: stroke; }
     .node { position: absolute; width: 220px; border: 1px solid #3a4257; background: #1b2131; border-radius: 8px; padding: 8px; cursor: move; box-shadow: 0 4px 14px rgba(0,0,0,0.35); transition: border-color 0.15s, box-shadow 0.15s, transform 0.1s; }
-    .node:hover:not(.running) { border-color: #4f5a73; box-shadow: 0 6px 20px rgba(0,0,0,0.45); transform: translateY(-1px); }
+    .node:hover:not(.running):not(.selected) { border-color: #4f5a73; box-shadow: 0 6px 20px rgba(0,0,0,0.45); transform: translateY(-1px); }
     .node.selected { border-color: #69a0ff; box-shadow: 0 0 0 2px rgba(105,160,255,0.2), 0 4px 14px rgba(0,0,0,0.35); }
+    .node.selected:hover { box-shadow: 0 0 0 2px rgba(105,160,255,0.3), 0 6px 20px rgba(0,0,0,0.45); }
     .node.running { border-color: #4f7cff; box-shadow: 0 0 12px rgba(79,124,255,0.4); animation: pulse 1.5s ease-in-out infinite; }
     .node.completed { border-color: #3ddc84; }
     .node.errored { border-color: #ff4444; box-shadow: 0 0 8px rgba(255,68,68,0.3); }
@@ -486,6 +487,7 @@ function buildStudioHtml(): string {
         <button id="stopBtn" class="danger" style="display:none;">Stop</button>
         <button id="saveBtn" class="secondary">Save Workflow</button>
         <button id="reloadBtn" class="secondary">Refresh Saved List</button>
+        <button id="notifSettingsBtn" class="secondary" title="Notification settings" style="margin-left:auto;font-size:13px;">&#128276; Notifications</button>
       </div>
 
       <div class="canvas-wrap card">
@@ -516,6 +518,7 @@ function buildStudioHtml(): string {
           <div class="toolbar-2" style="margin-top:8px;">
             <button id="previewBtn" class="secondary">Preview</button>
             <button id="rawBtn" class="secondary">Raw</button>
+            <button id="downloadOutputBtn" class="secondary" title="Download output as file">Download</button>
           </div>
           <div id="outputPreview" style="margin-top:8px; padding:10px; border:1px solid #2a3144; border-radius:6px; background:#0f1117; max-height:360px; overflow:auto;"></div>
           <pre id="outputRaw" style="display:none; margin-top:8px;"></pre>
@@ -600,6 +603,40 @@ function buildStudioHtml(): string {
         <button id="chatApplyBtn" style="display:none; padding:8px 16px; border-radius:6px; border:none; background:#3ddc84; color:#111; cursor:pointer; font-size:13px; font-weight:600;">Use Refined Content</button>
         <button id="chatRevertBtn" style="display:none; padding:8px 16px; border-radius:6px; border:1px solid #6b7280; background:transparent; color:#8f98af; cursor:pointer; font-size:13px; font-weight:600;">Revert to Original</button>
         <button id="chatAcceptBtn" style="padding:8px 16px; border-radius:6px; border:none; background:#3ddc84; color:#111; cursor:pointer; font-size:13px; font-weight:600;">Accept & Continue</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notification Settings Modal -->
+  <div id="notifModal" style="display:none; position:fixed; inset:0; z-index:9996; background:rgba(0,0,0,0.7); align-items:center; justify-content:center;">
+    <div style="width:440px; max-width:90vw; background:#151925; border:1px solid #3a4257; border-radius:12px; display:flex; flex-direction:column; box-shadow:0 16px 48px rgba(0,0,0,0.6);">
+      <div style="padding:16px 20px; border-bottom:1px solid #272b36; display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="margin:0; color:#e8eaf0; font-size:15px;">Notification Settings</h3>
+        <button id="notifModalClose" style="background:none; border:none; color:#8f98af; font-size:18px; cursor:pointer; padding:0 4px;">&times;</button>
+      </div>
+      <div style="padding:20px;">
+        <label style="display:flex; align-items:center; gap:10px; margin-bottom:16px; cursor:pointer;">
+          <input type="checkbox" id="notifEnabled" style="width:16px; height:16px; accent-color:#4f7cff;" />
+          <span style="color:#e8eaf0; font-size:13px;">Enable desktop notifications</span>
+        </label>
+        <label style="display:flex; align-items:center; gap:10px; margin-bottom:16px; cursor:pointer;">
+          <input type="checkbox" id="notifOnlyBackground" style="width:16px; height:16px; accent-color:#4f7cff;" />
+          <span style="color:#e8eaf0; font-size:13px;">Only notify when app is in background</span>
+        </label>
+        <label style="display:flex; align-items:center; gap:10px; margin-bottom:16px; cursor:pointer;">
+          <input type="checkbox" id="notifPerNode" style="width:16px; height:16px; accent-color:#4f7cff;" />
+          <span style="color:#e8eaf0; font-size:13px;">Notify when individual AI nodes take too long</span>
+        </label>
+        <div id="notifThresholdWrap" style="margin-left:26px; margin-bottom:16px;">
+          <label style="color:#8f98af; font-size:12px; display:block; margin-bottom:4px;">Time threshold (seconds)</label>
+          <input type="number" id="notifThreshold" min="5" max="600" value="30" style="width:80px; padding:4px 8px; background:#1a1f2e; border:1px solid #3a4257; border-radius:6px; color:#e8eaf0; font-size:13px;" />
+        </div>
+        <div style="color:#6b7394; font-size:11px; line-height:1.5; margin-bottom:16px;">
+          When enabled, you'll receive OS notifications when workflows or long-running AI operations complete. Click a notification to bring the app to focus.
+        </div>
+        <div style="display:flex; justify-content:flex-end; gap:8px;">
+          <button id="notifSave" style="padding:8px 16px; background:#4f7cff; color:#fff; font-weight:600; border:none; border-radius:6px; cursor:pointer; font-size:13px;">Save</button>
+        </div>
       </div>
     </div>
   </div>
@@ -825,6 +862,37 @@ function buildStudioHtml(): string {
     let varsShowJson = false;
     let activeChatSessionId = null;
     let zoomLevel = 1;
+
+    // --- Notification settings (persisted in localStorage) ---
+    var NOTIF_KEY = 'ws_notification_settings';
+    function loadNotifSettings() {
+      try {
+        var raw = localStorage.getItem(NOTIF_KEY);
+        if (raw) return JSON.parse(raw);
+      } catch (e) {}
+      return { enabled: true, onlyBackground: true, perNode: true, thresholdSec: 30 };
+    }
+    function saveNotifSettings(s) {
+      try { localStorage.setItem(NOTIF_KEY, JSON.stringify(s)); } catch (e) {}
+    }
+    var notifSettings = loadNotifSettings();
+    var nodeStartTimes = {}; // nodeId -> Date.now() for per-node duration tracking
+
+    function fireNotification(title, body) {
+      if (!notifSettings.enabled) return;
+      if (notifSettings.onlyBackground && document.hasFocus()) return;
+      if (window.electronAPI && window.electronAPI.isElectron) {
+        window.electronAPI.showNotification(title, body);
+      } else if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification(title, { body: body });
+      }
+    }
+
+    // Request notification permission early (web only)
+    if ('Notification' in window && Notification.permission === 'default') {
+      // Delay slightly so the page loads first
+      setTimeout(function() { Notification.requestPermission(); }, 2000);
+    }
 
     // --- Toast notifications ---
     function showToast(msg, durationMs) {
@@ -2574,7 +2642,14 @@ function buildStudioHtml(): string {
 
         const hasTemplateRef = value.indexOf('{{') !== -1;
         const inputType = (isNumber && !hasTemplateRef) ? 'number' : 'text';
-        return '<div class="field-label-row"><label class="muted">' + label + requiredBadge + '</label>' + hintIcon + '</div>'
+
+        // Add Browse button for file path fields on io.writeFile
+        var browseBtn = '';
+        if (key === 'path' && node.type === 'io.writeFile') {
+          browseBtn = ' <button type="button" class="secondary browse-file-btn" style="font-size:10px;padding:2px 8px;margin-left:6px;vertical-align:middle;">Browse</button>';
+        }
+
+        return '<div class="field-label-row"><label class="muted">' + label + requiredBadge + '</label>' + hintIcon + browseBtn + '</div>'
           + '<input data-node-field="1" data-field-key="' + escapeHtml(key) + '" data-field-type="' + escapeHtml(fieldType) + '" type="' + inputType + '" value="' + escapeHtml(value) + '"' + placeholderAttr + ' style="margin-top:4px;" class="autocomplete-field" />'
           + badge + helper;
       });
@@ -2626,6 +2701,36 @@ function buildStudioHtml(): string {
         btn.addEventListener('click', function(e) {
           e.preventDefault();
           openPromptPicker();
+        });
+      });
+
+      // Wire Browse file picker (Electron only)
+      nodeForm.querySelectorAll('.browse-file-btn').forEach(function(btn) {
+        btn.addEventListener('click', async function(e) {
+          e.preventDefault();
+          var pathInput = nodeForm.querySelector('[data-field-key="path"]');
+          if (!pathInput) return;
+
+          if (window.electronAPI && window.electronAPI.isElectron) {
+            var currentVal = pathInput.value || 'output.md';
+            var ext = currentVal.split('.').pop() || 'md';
+            var result = await window.electronAPI.showSaveDialog({
+              title: 'Save workflow output',
+              defaultPath: currentVal,
+              filters: [
+                { name: 'Markdown', extensions: ['md'] },
+                { name: 'JSON', extensions: ['json'] },
+                { name: 'Text', extensions: ['txt'] },
+                { name: 'All Files', extensions: ['*'] },
+              ],
+            });
+            if (!result.canceled && result.filePath) {
+              pathInput.value = result.filePath;
+              pathInput.dispatchEvent(new Event('input'));
+            }
+          } else {
+            showToast('File picker available in the desktop app', 2000);
+          }
         });
       });
     }
@@ -3880,7 +3985,12 @@ function buildStudioHtml(): string {
 
               if (event.type === 'node-start') {
                 nodeStates[event.nodeId] = 'running';
+                nodeStartTimes[event.nodeId] = Date.now();
                 resultEl.textContent = 'Running node: ' + event.nodeId + ' (' + event.nodeType + ')';
+                // Update title bar with progress (visible in taskbar/dock when app is backgrounded)
+                var doneCount = Object.values(nodeStates).filter(function(s) { return s === 'completed' || s === 'warning'; }).length;
+                var totalCount = graph.nodes.length;
+                document.title = '(' + doneCount + '/' + totalCount + ') Running... \u2014 Workflow Studio';
                 render();
               } else if (event.type === 'node-complete') {
                 const output = event.result?.output || {};
@@ -3898,13 +4008,27 @@ function buildStudioHtml(): string {
                   // Store warning detail for the banner
                   if (!nodeWarnings) nodeWarnings = {};
                   nodeWarnings[event.nodeId] = emptyAiOutput
-                    ? 'AI returned empty output — the model may not have generated a response for this run.'
+                    ? 'AI returned empty output \u2014 the model may not have generated a response for this run.'
                     : (output.warning || 'Node produced no results.');
                 } else {
                   nodeStates[event.nodeId] = 'completed';
                 }
                 const dur = event.result?.durationMs;
                 resultEl.textContent = 'Completed: ' + event.nodeId + (dur ? ' (' + (dur / 1000).toFixed(1) + 's)' : '');
+
+                // Per-node notification for long-running AI operations
+                if (notifSettings.perNode && nodeStartTimes[event.nodeId]) {
+                  var nodeElapsed = Date.now() - nodeStartTimes[event.nodeId];
+                  var nodeType = event.result?.nodeType || '';
+                  var isAiNode = nodeType.startsWith('ai.') || nodeType.startsWith('image.') || nodeType === 'web.scrapeAndSummarize';
+                  if (isAiNode && nodeElapsed >= notifSettings.thresholdSec * 1000) {
+                    var nodeName = event.nodeId;
+                    var nodeNode = graph.nodes.find(function(n) { return n.id === event.nodeId; });
+                    if (nodeNode && nodeNode.label) nodeName = nodeNode.label;
+                    fireNotification('Node Complete: ' + nodeName, 'Finished in ' + (nodeElapsed / 1000).toFixed(1) + 's');
+                  }
+                }
+                delete nodeStartTimes[event.nodeId];
                 render();
               } else if (event.type === 'node-pause') {
                 // Interactive chat node is waiting for user input
@@ -3928,6 +4052,7 @@ function buildStudioHtml(): string {
                 }
               } else if (event.type === 'node-error') {
                 nodeStates[event.nodeId] = 'errored';
+                delete nodeStartTimes[event.nodeId];
                 var errText = event.result?.error || 'Unknown error';
                 resultEl.textContent = 'Error in ' + event.nodeId + ': ' + errText;
                 render();
@@ -3937,6 +4062,9 @@ function buildStudioHtml(): string {
                 }
               } else if (event.type === 'workflow-complete') {
                 finalResult = event.workflowResult;
+                // Reset title immediately (don't wait for stream close)
+                document.title = 'Workflow Studio';
+                nodeStartTimes = {};
               }
             } catch (parseErr) {
               // Skip malformed SSE lines
@@ -4025,6 +4153,15 @@ function buildStudioHtml(): string {
         resultEl.textContent = 'Run error: ' + String(error);
       } finally {
         setRunState(false);
+        // OS notification when workflow finishes
+        var notifyTitle = finalResult && finalResult.success ? 'Workflow Complete' : 'Workflow Failed';
+        var notifyBody = finalResult
+          ? ((finalResult.order || []).length + ' nodes executed in ' + ((finalResult.durationMs / 1000).toFixed(1)) + 's')
+          : 'An error occurred during execution';
+        fireNotification(notifyTitle, notifyBody);
+        // Safety net: ensure title is always reset
+        document.title = 'Workflow Studio';
+        nodeStartTimes = {};
       }
     }
 
@@ -4087,6 +4224,68 @@ function buildStudioHtml(): string {
 
     previewBtn.onclick = () => setOutputView('preview');
     rawBtn.onclick = () => setOutputView('raw');
+
+    // Download output button
+    document.getElementById('downloadOutputBtn').onclick = function() {
+      if (!outputState.content) { showToast('No output to download', 1500); return; }
+      var ext = outputState.markdown ? '.md' : '.txt';
+      var filename = (outputState.path ? outputState.path.split('/').pop() : 'workflow-output' + ext);
+      var blob = new Blob([outputState.content], { type: 'text/plain;charset=utf-8' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast('Downloaded ' + filename, 1500);
+    };
+
+    // --- Notification settings modal ---
+    var notifModal = document.getElementById('notifModal');
+    var notifEnabledEl = document.getElementById('notifEnabled');
+    var notifOnlyBgEl = document.getElementById('notifOnlyBackground');
+    var notifPerNodeEl = document.getElementById('notifPerNode');
+    var notifThresholdEl = document.getElementById('notifThreshold');
+    var notifThresholdWrap = document.getElementById('notifThresholdWrap');
+
+    function syncNotifUI() {
+      notifEnabledEl.checked = notifSettings.enabled;
+      notifOnlyBgEl.checked = notifSettings.onlyBackground;
+      notifPerNodeEl.checked = notifSettings.perNode;
+      notifThresholdEl.value = notifSettings.thresholdSec;
+      notifThresholdWrap.style.opacity = notifSettings.perNode ? '1' : '0.4';
+      notifThresholdEl.disabled = !notifSettings.perNode;
+    }
+
+    document.getElementById('notifSettingsBtn').onclick = function() {
+      syncNotifUI();
+      notifModal.style.display = 'flex';
+    };
+    document.getElementById('notifModalClose').onclick = function() {
+      notifModal.style.display = 'none';
+    };
+    notifModal.onclick = function(e) {
+      if (e.target === notifModal) notifModal.style.display = 'none';
+    };
+    notifPerNodeEl.onchange = function() {
+      notifThresholdWrap.style.opacity = notifPerNodeEl.checked ? '1' : '0.4';
+      notifThresholdEl.disabled = !notifPerNodeEl.checked;
+    };
+    document.getElementById('notifSave').onclick = function() {
+      notifSettings.enabled = notifEnabledEl.checked;
+      notifSettings.onlyBackground = notifOnlyBgEl.checked;
+      notifSettings.perNode = notifPerNodeEl.checked;
+      notifSettings.thresholdSec = Math.max(5, parseInt(notifThresholdEl.value, 10) || 30);
+      saveNotifSettings(notifSettings);
+      notifModal.style.display = 'none';
+      showToast('Notification settings saved', 1500);
+      // Request permission if enabling notifications and not yet granted
+      if (notifSettings.enabled && 'Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission();
+      }
+    };
 
     // --- Output/Result tab switching ---
     const outputTabBtn = document.getElementById('outputTabBtn');
