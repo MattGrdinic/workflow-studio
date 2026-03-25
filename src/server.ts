@@ -423,6 +423,7 @@ function buildStudioHtml(): string {
         </div>
         <div style="position:relative;">
           <button onclick="showWelcomeBanner()" class="secondary" style="font-size:11px;padding:4px 10px;white-space:nowrap;">Setup</button>
+          <button onclick="window.startTour()" class="secondary" style="font-size:11px;padding:4px 10px;white-space:nowrap;">Tour</button>
           <button id="aboutBtn" class="secondary" style="font-size:11px;padding:4px 10px;white-space:nowrap;">v${APP_VERSION}</button>
           <div id="aboutMenu" style="display:none;position:absolute;right:0;top:110%;width:280px;background:#1a1f2e;border:1px solid #343a4d;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.5);z-index:9999;padding:14px 16px;font-size:13px;line-height:1.6;">
             <div style="font-weight:600;margin-bottom:8px;color:#e8eaf0;">Workflow Studio <span style="color:#6b7394;font-weight:400;">v${APP_VERSION}</span></div>
@@ -450,7 +451,7 @@ function buildStudioHtml(): string {
       <div id="claudeBanner" style="display:none;padding:10px 14px;border-radius:8px;margin-bottom:8px;font-size:13px;line-height:1.5;"></div>
 
       <!-- First-run welcome banner -->
-      <div id="welcomeBanner" style="display:none;padding:14px 18px;background:#1a1f2e;border:1px solid #343a4d;border-radius:8px;margin-bottom:8px;font-size:13px;line-height:1.6;">
+      <div id="welcomeBanner" style="display:none;padding:14px 18px;background:rgb(75 28 48);border:1px solid #343a4d;border-radius:8px;margin-bottom:8px;font-size:13px;line-height:1.6;">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;">
           <div>
             <div style="font-weight:600;color:#e8eaf0;margin-bottom:6px;">Welcome to Workflow Studio</div>
@@ -4715,6 +4716,182 @@ function buildStudioHtml(): string {
         }
       } catch(e) { /* ignore */ }
     }
+
+    // ── Guided Tour ──────────────────────────────────────────────
+    (function() {
+      var tourSteps = [
+        {
+          target: '#panelTabTemplates',
+          title: 'Start with Templates',
+          text: 'The fastest way to get started. Click Templates to browse pre-built workflows for common tasks like Jira analysis, spec writing, and more.',
+          action: function() {
+            document.getElementById('panelTabTemplates').click();
+          }
+        },
+        {
+          target: '#panelTabNodes',
+          title: 'Build Custom Workflows',
+          text: 'Drag individual nodes onto the canvas to build your own workflows from scratch. Nodes are grouped by category: Jira, AI, Azure DevOps, and more.',
+          action: function() {
+            document.getElementById('panelTabNodes').click();
+          }
+        },
+        {
+          target: '#panelTabSaved',
+          title: 'Your Saved Workflows',
+          text: 'Workflows you save appear here. Click one to load it back onto the canvas.',
+          action: function() {
+            document.getElementById('panelTabSaved').click();
+          }
+        },
+        {
+          target: '#runBtn',
+          title: 'Run Your Workflow',
+          text: 'Once your workflow is on the canvas with edges connected, click Run to execute it. Results appear in the output panel below.'
+        },
+        {
+          target: '#saveBtn',
+          title: 'Save Your Work',
+          text: 'Save your workflow to a JSON file. You can reload it later from the Saved tab.'
+        },
+        {
+          target: null,
+          title: 'Tips & Tricks',
+          text: 'Double-click a node to edit its config. Right-click the canvas to add nodes quickly. Use Cmd/Ctrl+Z to undo. Scroll to zoom. Most workflows need Jira or ADO credentials configured via the Setup button.',
+          center: true
+        }
+      ];
+
+      var currentStep = -1;
+      var overlay, spotlight, tooltip;
+
+      function createOverlay() {
+        overlay = document.createElement('div');
+        overlay.id = 'tourOverlay';
+        overlay.style.cssText = 'position:fixed;inset:0;z-index:99998;pointer-events:none;';
+
+        spotlight = document.createElement('div');
+        spotlight.id = 'tourSpotlight';
+        spotlight.style.cssText = 'position:fixed;z-index:99999;border-radius:8px;box-shadow:0 0 0 9999px rgba(0,0,0,0.7);pointer-events:none;transition:all 0.3s ease;';
+
+        tooltip = document.createElement('div');
+        tooltip.id = 'tourTooltip';
+        tooltip.style.cssText = 'position:fixed;z-index:100000;background:#1a1f2e;border:1px solid #4f7cff;border-radius:10px;padding:18px 20px;max-width:340px;box-shadow:0 8px 32px rgba(0,0,0,0.6);font-size:13px;line-height:1.6;color:#e8eaf0;transition:all 0.3s ease;';
+
+        // Click anywhere on overlay background to advance
+        var bgClick = document.createElement('div');
+        bgClick.style.cssText = 'position:fixed;inset:0;z-index:99997;cursor:pointer;';
+        bgClick.onclick = function() { advanceTour(); };
+
+        document.body.appendChild(bgClick);
+        document.body.appendChild(overlay);
+        document.body.appendChild(spotlight);
+        document.body.appendChild(tooltip);
+
+        overlay._bgClick = bgClick;
+      }
+
+      function removeOverlay() {
+        if (overlay) { overlay.remove(); spotlight.remove(); tooltip.remove(); overlay._bgClick.remove(); overlay = null; }
+      }
+
+      function positionTooltip(rect, step) {
+        if (step.center || !rect) {
+          tooltip.style.top = '50%';
+          tooltip.style.left = '50%';
+          tooltip.style.transform = 'translate(-50%, -50%)';
+          spotlight.style.display = 'none';
+          return;
+        }
+
+        spotlight.style.display = 'block';
+        var pad = 6;
+        spotlight.style.top = (rect.top - pad) + 'px';
+        spotlight.style.left = (rect.left - pad) + 'px';
+        spotlight.style.width = (rect.width + pad * 2) + 'px';
+        spotlight.style.height = (rect.height + pad * 2) + 'px';
+
+        // Position tooltip below or to the right of the target
+        var ttWidth = 340;
+        var spaceBelow = window.innerHeight - rect.bottom;
+        var spaceRight = window.innerWidth - rect.right;
+
+        tooltip.style.transform = 'none';
+        if (spaceBelow > 200) {
+          tooltip.style.top = (rect.bottom + 14) + 'px';
+          tooltip.style.left = Math.min(rect.left, window.innerWidth - ttWidth - 20) + 'px';
+        } else if (spaceRight > ttWidth + 40) {
+          tooltip.style.top = rect.top + 'px';
+          tooltip.style.left = (rect.right + 14) + 'px';
+        } else {
+          tooltip.style.top = Math.max(10, rect.top - 200) + 'px';
+          tooltip.style.left = Math.min(rect.left, window.innerWidth - ttWidth - 20) + 'px';
+        }
+      }
+
+      function showStep(idx) {
+        var step = tourSteps[idx];
+        if (!step) { endTour(); return; }
+
+        if (step.action) step.action();
+
+        var stepNum = (idx + 1) + ' of ' + tourSteps.length;
+        var isLast = idx === tourSteps.length - 1;
+
+        tooltip.innerHTML =
+          '<div style="font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:#4f7cff;margin-bottom:6px;">Step ' + stepNum + '</div>' +
+          '<div style="font-weight:600;font-size:15px;margin-bottom:8px;">' + step.title + '</div>' +
+          '<div style="color:#a6adbd;margin-bottom:14px;">' + step.text + '</div>' +
+          '<div style="display:flex;justify-content:space-between;align-items:center;">' +
+            '<button onclick="window.endTour()" style="padding:5px 12px;font-size:12px;background:transparent;color:#6b7394;border:none;cursor:pointer;">Skip tour</button>' +
+            '<div style="display:flex;gap:6px;">' +
+              (idx > 0 ? '<button onclick="window.tourPrev()" style="padding:5px 14px;font-size:12px;background:#272b36;color:#e8eaf0;border:none;border-radius:6px;cursor:pointer;">Back</button>' : '') +
+              '<button onclick="window.tourNext()" style="padding:5px 14px;font-size:12px;background:#4f7cff;color:#fff;border:none;border-radius:6px;cursor:pointer;">' + (isLast ? 'Done' : 'Next') + '</button>' +
+            '</div>' +
+          '</div>';
+
+        var rect = step.target ? document.querySelector(step.target).getBoundingClientRect() : null;
+        positionTooltip(rect, step);
+      }
+
+      function advanceTour() { showStep(++currentStep); }
+
+      window.startTour = function() {
+        if (overlay) removeOverlay();
+        createOverlay();
+        currentStep = 0;
+        showStep(0);
+      };
+
+      window.endTour = function() {
+        removeOverlay();
+        currentStep = -1;
+        localStorage.setItem('ws_tour_completed', '1');
+        // Switch back to templates tab as the recommended starting point
+        document.getElementById('panelTabTemplates').click();
+      };
+
+      window.tourNext = function() { advanceTour(); };
+      window.tourPrev = function() { if (currentStep > 0) { currentStep--; showStep(currentStep); } };
+
+      // Auto-start tour on first visit (after welcome banner is dismissed or doesn't show)
+      var origCheckStartup = checkStartupHealth;
+      checkStartupHealth = async function() {
+        await origCheckStartup();
+        if (!localStorage.getItem('ws_tour_completed') && !localStorage.getItem('ws_welcome_dismissed')) {
+          // Welcome banner is showing — start tour after it's dismissed
+          var observer = new MutationObserver(function() {
+            if (document.getElementById('welcomeBanner').style.display === 'none') {
+              observer.disconnect();
+              setTimeout(function() { window.startTour(); }, 300);
+            }
+          });
+          observer.observe(document.getElementById('welcomeBanner'), { attributes: true, attributeFilter: ['style'] });
+        } else if (!localStorage.getItem('ws_tour_completed')) {
+          setTimeout(function() { window.startTour(); }, 500);
+        }
+      };
+    })();
   </script>
 </body>
 </html>`;
