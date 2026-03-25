@@ -1,5 +1,8 @@
 # Workflow Studio
 
+[![Build & Release](https://github.com/MattGrdinic/workflow-studio/actions/workflows/release.yml/badge.svg)](https://github.com/MattGrdinic/workflow-studio/actions/workflows/release.yml)
+[![Tests](https://github.com/MattGrdinic/workflow-studio/actions/workflows/test.yml/badge.svg)](https://github.com/MattGrdinic/workflow-studio/actions/workflows/test.yml)
+
 A node-based workflow studio for AI-powered Jira, Slack, and process composition.
 
 ## Quick Start
@@ -48,6 +51,24 @@ irm https://raw.githubusercontent.com/MattGrdinic/workflow-studio/main/install.p
 ```
 
 Or download the desktop app directly from [Releases](https://github.com/MattGrdinic/workflow-studio/releases).
+
+## Testing
+
+```bash
+npm test                     # Run all tests
+npm run test:coverage        # Run with coverage report
+npm run test:app             # App logic, API, and UI tests only
+npm run test:pipeline        # Build and release workflow tests only
+npm run test:install         # Install script tests only
+npm run test:watch           # Watch mode during development
+```
+
+Tests are organized under `tests/`:
+- **`tests/app/`** — Runtime logic, node definitions, templates, HTTP API, and UI rendering
+- **`tests/pipeline/`** — Build output validation and GitHub Actions workflow checks
+- **`tests/install/`** — Mac/Linux and Windows install script verification
+
+All tests must pass before a release is created. The release workflow runs the full test suite and will not tag or build if any test fails.
 
 ## Other Commands
 

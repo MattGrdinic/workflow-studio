@@ -393,7 +393,7 @@ function buildUpstreamText(previousResults: Record<string, NodeExecutionResult>)
 
 // --- Output format converters ---
 
-function markdownToJiraWiki(md: string): string {
+export function markdownToJiraWiki(md: string): string {
   return md
     // Code blocks (fenced) — must come before inline transforms
     .replace(/```(\w*)\n([\s\S]*?)```/g, (_m, lang, code) => `{code:language=${lang || 'none'}}\n${code}{code}`)
@@ -404,10 +404,11 @@ function markdownToJiraWiki(md: string): string {
     .replace(/^###\s+(.+)$/gm, 'h3. $1')
     .replace(/^##\s+(.+)$/gm, 'h2. $1')
     .replace(/^#\s+(.+)$/gm, 'h1. $1')
-    // Bold and italic
-    .replace(/\*\*\*(.+?)\*\*\*/g, '*_$1_*')
-    .replace(/\*\*(.+?)\*\*/g, '*$1*')
+    // Bold+italic, bold, then italic — use sentinel \x00 to protect converted bold
+    .replace(/\*\*\*(.+?)\*\*\*/g, '\x00_$1_\x00')
+    .replace(/\*\*(.+?)\*\*/g, '\x00$1\x00')
     .replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, '_$1_')
+    .replace(/\x00/g, '*')
     // Inline code
     .replace(/`([^`]+)`/g, '{{$1}}')
     // Links
@@ -422,7 +423,7 @@ function markdownToJiraWiki(md: string): string {
     .replace(/^>\s+(.+)$/gm, '{quote}$1{quote}');
 }
 
-function stripMarkdown(md: string): string {
+export function stripMarkdown(md: string): string {
   return md
     .replace(/```[\s\S]*?```/g, (m) => m.replace(/```\w*\n?/g, '').replace(/```/g, ''))
     .replace(/^#{1,6}\s+/gm, '')
@@ -3225,7 +3226,7 @@ function resolveNodeValue(
   return value;
 }
 
-function extractRefsFromNode(node: WorkflowNode): string[] {
+export function extractRefsFromNode(node: WorkflowNode): string[] {
   const refs = new Set<string>();
 
   const scan = (value: NodeValue): void => {
@@ -3285,7 +3286,7 @@ function resolveConfigRef(
   return getNestedValue(node.config as Record<string, unknown>, pathParts.join('.'));
 }
 
-function getNestedValue(root: unknown, path: string): unknown {
+export function getNestedValue(root: unknown, path: string): unknown {
   if (!root || !path) return undefined;
 
   const parts = path.split('.');
@@ -3309,7 +3310,7 @@ function collectFlatOutputs(
   return flat;
 }
 
-function renderTemplate(template: string, variables: Record<string, NodeValue>): string {
+export function renderTemplate(template: string, variables: Record<string, NodeValue>): string {
   return template.replace(/\{\{\s*([^}]+?)\s*\}\}/g, (_match, token: string) => {
     const key = token.trim();
     const value = getNestedValue(variables, key);
