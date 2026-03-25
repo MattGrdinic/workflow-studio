@@ -167,8 +167,9 @@ Write-Host "  Workflow Studio ($versionLabel) installed successfully!" -Foregrou
 Write-Host ""
 Write-Host "  Get started:" -ForegroundColor White
 Write-Host "    workflow-studio              Launch the browser UI at http://127.0.0.1:4317"
-Write-Host "    workflow-studio --setup      Configure Jira, Slack & ADO credentials (or do it in the UI)"
 Write-Host "    workflow-studio --help       Show all options"
+Write-Host ""
+Write-Host "  Configure Jira, Slack & ADO credentials in the browser UI."
 Write-Host ""
 Write-Host "  Update to latest version:" -ForegroundColor White
 Write-Host "    irm https://raw.githubusercontent.com/$Repo/main/install.ps1 | iex"
