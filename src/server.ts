@@ -418,11 +418,15 @@ function buildStudioHtml(): string {
             <div style="color:#a6adbd;font-size:12px;margin-bottom:12px;">AI-powered workflow composition for Jira, Slack, and Azure DevOps.</div>
             <div style="border-top:1px solid #272b36;padding-top:10px;font-size:12px;">
               <div style="color:#8f98af;margin-bottom:6px;font-weight:600;">Uninstall</div>
-              <div style="color:#a6adbd;margin-bottom:4px;">macOS / Linux:</div>
-              <code style="display:block;background:#0f1117;padding:6px 8px;border-radius:4px;font-size:11px;color:#69a0ff;margin-bottom:8px;word-break:break-all;">sudo rm -rf /usr/local/lib/workflow-studio /usr/local/bin/workflow-studio</code>
-              <div style="color:#a6adbd;margin-bottom:4px;">Windows:</div>
-              <code style="display:block;background:#0f1117;padding:6px 8px;border-radius:4px;font-size:11px;color:#69a0ff;margin-bottom:8px;word-break:break-all;">Remove-Item -Recurse -Force "$env:LOCALAPPDATA\\workflow-studio"</code>
-              <div style="color:#6b7394;font-size:11px;">Desktop app: drag to Trash (Mac) or use Add/Remove Programs (Windows).</div>
+              <div style="color:#a6adbd;margin-bottom:6px;font-size:11px;font-weight:600;">Desktop app:</div>
+              <div style="color:#a6adbd;margin-bottom:2px;font-size:11px;">macOS: drag Workflow Studio.app to Trash, then run:</div>
+              <code style="display:block;background:#0f1117;padding:6px 8px;border-radius:4px;font-size:11px;color:#69a0ff;margin-bottom:6px;word-break:break-all;">rm -rf ~/Library/Application\\ Support/Workflow\\ Studio</code>
+              <div style="color:#a6adbd;margin-bottom:2px;font-size:11px;">Windows: use Add/Remove Programs, then delete:</div>
+              <code style="display:block;background:#0f1117;padding:6px 8px;border-radius:4px;font-size:11px;color:#69a0ff;margin-bottom:10px;word-break:break-all;">%APPDATA%\\Workflow Studio</code>
+              <div style="color:#a6adbd;margin-bottom:6px;font-size:11px;font-weight:600;">CLI install (install.sh):</div>
+              <code style="display:block;background:#0f1117;padding:6px 8px;border-radius:4px;font-size:11px;color:#69a0ff;margin-bottom:6px;word-break:break-all;">sudo rm -rf /usr/local/lib/workflow-studio /usr/local/bin/workflow-studio</code>
+              <div style="color:#a6adbd;margin-bottom:6px;font-size:11px;font-weight:600;">CLI install (install.ps1):</div>
+              <code style="display:block;background:#0f1117;padding:6px 8px;border-radius:4px;font-size:11px;color:#69a0ff;margin-bottom:4px;word-break:break-all;">Remove-Item -Recurse -Force "$env:LOCALAPPDATA\\workflow-studio"</code>
             </div>
             <div style="border-top:1px solid #272b36;margin-top:10px;padding-top:10px;">
               <a href="https://github.com/MattGrdinic/workflow-studio" target="_blank" style="color:#4f7cff;text-decoration:none;font-size:12px;">GitHub</a>
