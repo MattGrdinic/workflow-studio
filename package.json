@@ -1,6 +1,6 @@
 {
   "name": "workflow-studio",
-  "version": "1.0.0-alpha.8",
+  "version": "1.0.0-alpha.9",
   "description": "Node-based workflow studio for AI-powered Jira, Slack, and process composition",
   "type": "module",
   "main": "electron/main.cjs",
@@ -16,19 +16,26 @@
     "electron:pack": "npm run icons && npm run build && electron-builder --dir",
     "electron:dist": "npm run icons && npm run build && electron-builder",
     "electron:dist:mac": "npm run icons && npm run build && electron-builder --mac",
-    "electron:dist:win": "npm run icons && npm run build && electron-builder --win"
+    "electron:dist:win": "npm run icons && npm run build && electron-builder --win",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:app": "vitest run tests/app",
+    "test:pipeline": "vitest run tests/pipeline",
+    "test:install": "vitest run tests/install"
   },
   "engines": {
     "node": ">=20"
   },
   "devDependencies": {
+    "@vitest/coverage-v8": "^4.1.1",
     "electron": "^33.0.0",
     "electron-builder": "^25.1.0",
     "esbuild": "^0.24.0",
     "sharp": "^0.33.0",
-    "typescript": "^5.6.0"
+    "typescript": "^5.6.0",
+    "vitest": "^4.1.1"
   },
-  "dependencies": {},
   "files": [
     "dist"
   ],
@@ -42,7 +49,13 @@
       {
         "from": "dist",
         "to": "server/dist",
-        "filter": ["**/*"]
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "electron/preload.cjs",
+        "to": "electron/preload.cjs"
       }
     ],
     "mac": {
@@ -50,7 +63,10 @@
       "target": [
         {
           "target": "zip",
-          "arch": ["arm64", "x64"]
+          "arch": [
+            "arm64",
+            "x64"
+          ]
         }
       ],
       "icon": "assets/icon.icns",
@@ -64,7 +80,9 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "icon": "assets/icon.ico"

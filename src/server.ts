@@ -292,11 +292,18 @@ function buildStudioHtml(): string {
     .main { display: grid; grid-template-rows: auto auto auto auto; grid-auto-rows: auto; align-content: start; gap: 10px; padding: 12px; overflow-y: auto; min-height: 0; }
     .card { background: #151925; border: 1px solid #272b36; border-radius: 8px; padding: 10px; }
     h1, h2, h3 { margin: 0 0 8px; }
-    button { background: #4f7cff; color: white; border: 0; border-radius: 6px; padding: 8px 10px; cursor: pointer; }
+    button { background: #4f7cff; color: white; border: 0; border-radius: 6px; padding: 8px 10px; cursor: pointer; transition: background 0.15s, box-shadow 0.15s, transform 0.1s; }
+    button:hover:not(:disabled) { background: #6690ff; }
+    button:active:not(:disabled) { transform: scale(0.97); }
+    button:focus-visible { outline: 2px solid #69a0ff; outline-offset: 2px; }
     button.secondary { background: #2f3442; }
+    button.secondary:hover:not(:disabled) { background: #3a4257; }
     button.danger { background: #8f2d3a; }
+    button.danger:hover:not(:disabled) { background: #a83a4e; }
     button:disabled { opacity: 0.5; cursor: not-allowed; }
-    input, select, textarea { width: 100%; background: #0f1117; color: #e8eaf0; border: 1px solid #343a4d; border-radius: 6px; padding: 8px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    input, select, textarea { width: 100%; background: #0f1117; color: #e8eaf0; border: 1px solid #343a4d; border-radius: 6px; padding: 8px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; transition: border-color 0.15s, box-shadow 0.15s; }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: #4f7cff; box-shadow: 0 0 0 2px rgba(79,124,255,0.15); }
+    input:hover:not(:focus), select:hover:not(:focus), textarea:hover:not(:focus) { border-color: #4f5a73; }
     textarea { min-height: 140px; resize: vertical; }
     .panel-right textarea { min-height: 160px; }
     .toolbar { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 8px; }
@@ -332,7 +339,7 @@ function buildStudioHtml(): string {
     .output-tab:not(.active) { background: transparent; color: #8f98af; }
     .output-tab:hover:not(.active) { background: #1a1f2e; }
     .canvas-wrap { position: relative; height: 560px; border: 1px solid #2a3144; border-radius: 8px; background: #0c1019; overflow: auto; }
-    .canvas { position: relative; width: 2200px; height: 1400px; transform-origin: 0 0; }
+    .canvas { position: relative; width: 2200px; height: 1400px; transform-origin: 0 0; background-image: radial-gradient(circle, #1e2436 1px, transparent 1px); background-size: 24px 24px; }
     .zoom-controls { position: absolute; bottom: 10px; right: 10px; z-index: 10; display: flex; gap: 4px; align-items: center; background: #1b2131; border: 1px solid #3a4257; border-radius: 6px; padding: 4px 6px; }
     .zoom-controls button { padding: 4px 8px; font-size: 14px; min-width: 28px; background: #2f3442; border-radius: 4px; }
     .zoom-controls button:hover { background: #3a4257; }
@@ -340,8 +347,10 @@ function buildStudioHtml(): string {
     svg.edges { position: absolute; inset: 0; pointer-events: none; }
     svg.edges > * { pointer-events: none; }
     svg.edges > .edge-hitbox { pointer-events: stroke; }
-    .node { position: absolute; width: 220px; border: 1px solid #3a4257; background: #1b2131; border-radius: 8px; padding: 8px; cursor: move; box-shadow: 0 4px 14px rgba(0,0,0,0.35); }
-    .node.selected { border-color: #69a0ff; }
+    .node { position: absolute; width: 220px; border: 1px solid #3a4257; background: #1b2131; border-radius: 8px; padding: 8px; cursor: move; box-shadow: 0 4px 14px rgba(0,0,0,0.35); transition: border-color 0.15s, box-shadow 0.15s, transform 0.1s; }
+    .node:hover:not(.running):not(.selected) { border-color: #4f5a73; box-shadow: 0 6px 20px rgba(0,0,0,0.45); transform: translateY(-1px); }
+    .node.selected { border-color: #69a0ff; box-shadow: 0 0 0 2px rgba(105,160,255,0.2), 0 4px 14px rgba(0,0,0,0.35); }
+    .node.selected:hover { box-shadow: 0 0 0 2px rgba(105,160,255,0.3), 0 6px 20px rgba(0,0,0,0.45); }
     .node.running { border-color: #4f7cff; box-shadow: 0 0 12px rgba(79,124,255,0.4); animation: pulse 1.5s ease-in-out infinite; }
     .node.completed { border-color: #3ddc84; }
     .node.errored { border-color: #ff4444; box-shadow: 0 0 8px rgba(255,68,68,0.3); }
@@ -394,9 +403,16 @@ function buildStudioHtml(): string {
     .edge-list { max-height: 160px; overflow: auto; border: 1px solid #2a3144; border-radius: 6px; padding: 6px; }
     .edge-item { display: grid; grid-template-columns: 1fr auto; gap: 6px; align-items: center; margin-bottom: 4px; }
     pre { white-space: pre-wrap; word-break: break-word; background: #0f1117; border: 1px solid #2a3144; border-radius: 6px; padding: 10px; max-height: 220px; overflow: auto; }
+    #toastContainer { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 100001; display: flex; flex-direction: column-reverse; gap: 6px; pointer-events: none; }
+    .toast { padding: 8px 18px; border-radius: 8px; font-size: 13px; color: #e8eaf0; background: #1b2131; border: 1px solid #3a4257; box-shadow: 0 4px 16px rgba(0,0,0,0.5); opacity: 0; transform: translateY(10px); animation: toastIn 0.2s ease forwards; pointer-events: auto; }
+    .toast.fade-out { animation: toastOut 0.2s ease forwards; }
+    @keyframes toastIn { to { opacity: 1; transform: translateY(0); } }
+    @keyframes toastOut { to { opacity: 0; transform: translateY(-10px); } }
+    kbd { background: #1a1f2e; padding: 1px 5px; border-radius: 3px; border: 1px solid #343a4d; font-size: 10px; font-family: inherit; }
   </style>
 </head>
 <body>
+  <div id="toastContainer"></div>
   <div class="layout">
     <aside class="panel">
       <div style="display:flex;gap:0;border-bottom:1px solid #272b36;margin-bottom:10px;">
@@ -471,6 +487,7 @@ function buildStudioHtml(): string {
         <button id="stopBtn" class="danger" style="display:none;">Stop</button>
         <button id="saveBtn" class="secondary">Save Workflow</button>
         <button id="reloadBtn" class="secondary">Refresh Saved List</button>
+        <button id="notifSettingsBtn" class="secondary" title="Notification settings" style="margin-left:auto;font-size:13px;">&#128276; Notifications</button>
       </div>
 
       <div class="canvas-wrap card">
@@ -485,9 +502,9 @@ function buildStudioHtml(): string {
           <button id="zoomResetBtn" title="Reset zoom" style="font-size:11px;padding:4px 6px;">1:1</button>
         </div>
       </div>
-      <div class="muted" style="display:flex;justify-content:space-between;align-items:center;">
-        <span>Tip: drag nodes to move, drag canvas to pan, drag near edges to auto-scroll.</span>
-        <span style="color:#6b7394;font-size:11px;"><kbd style="background:#1a1f2e;padding:1px 4px;border-radius:3px;border:1px solid #343a4d;font-size:10px;">Ctrl+K</kbd> Search nodes &nbsp; <kbd style="background:#1a1f2e;padding:1px 4px;border-radius:3px;border:1px solid #343a4d;font-size:10px;">Del</kbd> Delete selected</span>
+      <div class="muted" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px;">
+        <span>Drag nodes to move &bull; Drag canvas to pan &bull; Right-click canvas to add nodes</span>
+        <span style="color:#6b7394;font-size:11px;display:flex;gap:8px;flex-wrap:wrap;"><span><kbd>Ctrl+K</kbd> Search</span><span><kbd>Ctrl+Z</kbd> Undo</span><span><kbd>Ctrl+Shift+Z</kbd> Redo</span><span><kbd>Del</kbd> Delete</span></span>
       </div>
 
       <div class="card">
@@ -501,6 +518,7 @@ function buildStudioHtml(): string {
           <div class="toolbar-2" style="margin-top:8px;">
             <button id="previewBtn" class="secondary">Preview</button>
             <button id="rawBtn" class="secondary">Raw</button>
+            <button id="downloadOutputBtn" class="secondary" title="Download output as file">Download</button>
           </div>
           <div id="outputPreview" style="margin-top:8px; padding:10px; border:1px solid #2a3144; border-radius:6px; background:#0f1117; max-height:360px; overflow:auto;"></div>
           <pre id="outputRaw" style="display:none; margin-top:8px;"></pre>
@@ -585,6 +603,40 @@ function buildStudioHtml(): string {
         <button id="chatApplyBtn" style="display:none; padding:8px 16px; border-radius:6px; border:none; background:#3ddc84; color:#111; cursor:pointer; font-size:13px; font-weight:600;">Use Refined Content</button>
         <button id="chatRevertBtn" style="display:none; padding:8px 16px; border-radius:6px; border:1px solid #6b7280; background:transparent; color:#8f98af; cursor:pointer; font-size:13px; font-weight:600;">Revert to Original</button>
         <button id="chatAcceptBtn" style="padding:8px 16px; border-radius:6px; border:none; background:#3ddc84; color:#111; cursor:pointer; font-size:13px; font-weight:600;">Accept & Continue</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notification Settings Modal -->
+  <div id="notifModal" style="display:none; position:fixed; inset:0; z-index:9996; background:rgba(0,0,0,0.7); align-items:center; justify-content:center;">
+    <div style="width:440px; max-width:90vw; background:#151925; border:1px solid #3a4257; border-radius:12px; display:flex; flex-direction:column; box-shadow:0 16px 48px rgba(0,0,0,0.6);">
+      <div style="padding:16px 20px; border-bottom:1px solid #272b36; display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="margin:0; color:#e8eaf0; font-size:15px;">Notification Settings</h3>
+        <button id="notifModalClose" style="background:none; border:none; color:#8f98af; font-size:18px; cursor:pointer; padding:0 4px;">&times;</button>
+      </div>
+      <div style="padding:20px;">
+        <label style="display:flex; align-items:center; gap:10px; margin-bottom:16px; cursor:pointer;">
+          <input type="checkbox" id="notifEnabled" style="width:16px; height:16px; accent-color:#4f7cff;" />
+          <span style="color:#e8eaf0; font-size:13px;">Enable desktop notifications</span>
+        </label>
+        <label style="display:flex; align-items:center; gap:10px; margin-bottom:16px; cursor:pointer;">
+          <input type="checkbox" id="notifOnlyBackground" style="width:16px; height:16px; accent-color:#4f7cff;" />
+          <span style="color:#e8eaf0; font-size:13px;">Only notify when app is in background</span>
+        </label>
+        <label style="display:flex; align-items:center; gap:10px; margin-bottom:16px; cursor:pointer;">
+          <input type="checkbox" id="notifPerNode" style="width:16px; height:16px; accent-color:#4f7cff;" />
+          <span style="color:#e8eaf0; font-size:13px;">Notify when individual AI nodes take too long</span>
+        </label>
+        <div id="notifThresholdWrap" style="margin-left:26px; margin-bottom:16px;">
+          <label style="color:#8f98af; font-size:12px; display:block; margin-bottom:4px;">Time threshold (seconds)</label>
+          <input type="number" id="notifThreshold" min="5" max="600" value="30" style="width:80px; padding:4px 8px; background:#1a1f2e; border:1px solid #3a4257; border-radius:6px; color:#e8eaf0; font-size:13px;" />
+        </div>
+        <div style="color:#6b7394; font-size:11px; line-height:1.5; margin-bottom:16px;">
+          When enabled, you'll receive OS notifications when workflows or long-running AI operations complete. Click a notification to bring the app to focus.
+        </div>
+        <div style="display:flex; justify-content:flex-end; gap:8px;">
+          <button id="notifSave" style="padding:8px 16px; background:#4f7cff; color:#fff; font-weight:600; border:none; border-radius:6px; cursor:pointer; font-size:13px;">Save</button>
+        </div>
       </div>
     </div>
   </div>
@@ -810,6 +862,81 @@ function buildStudioHtml(): string {
     let varsShowJson = false;
     let activeChatSessionId = null;
     let zoomLevel = 1;
+
+    // --- Notification settings (persisted in localStorage) ---
+    var NOTIF_KEY = 'ws_notification_settings';
+    function loadNotifSettings() {
+      try {
+        var raw = localStorage.getItem(NOTIF_KEY);
+        if (raw) return JSON.parse(raw);
+      } catch (e) {}
+      return { enabled: true, onlyBackground: true, perNode: true, thresholdSec: 30 };
+    }
+    function saveNotifSettings(s) {
+      try { localStorage.setItem(NOTIF_KEY, JSON.stringify(s)); } catch (e) {}
+    }
+    var notifSettings = loadNotifSettings();
+    var nodeStartTimes = {}; // nodeId -> Date.now() for per-node duration tracking
+
+    function fireNotification(title, body) {
+      if (!notifSettings.enabled) return;
+      if (notifSettings.onlyBackground && document.hasFocus()) return;
+      if (window.electronAPI && window.electronAPI.isElectron) {
+        window.electronAPI.showNotification(title, body);
+      } else if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification(title, { body: body });
+      }
+    }
+
+    // Request notification permission early (web only)
+    if ('Notification' in window && Notification.permission === 'default') {
+      // Delay slightly so the page loads first
+      setTimeout(function() { Notification.requestPermission(); }, 2000);
+    }
+
+    // --- Toast notifications ---
+    function showToast(msg, durationMs) {
+      var container = document.getElementById('toastContainer');
+      var el = document.createElement('div');
+      el.className = 'toast';
+      el.textContent = msg;
+      container.appendChild(el);
+      setTimeout(function() {
+        el.classList.add('fade-out');
+        setTimeout(function() { el.remove(); }, 200);
+      }, durationMs || 1500);
+    }
+
+    // --- Undo / Redo ---
+    var undoStack = [];
+    var redoStack = [];
+    var maxUndoSteps = 50;
+
+    function pushUndo() {
+      undoStack.push(JSON.stringify(graph));
+      if (undoStack.length > maxUndoSteps) undoStack.shift();
+      redoStack = [];
+    }
+
+    function undo() {
+      if (undoStack.length === 0) { showToast('Nothing to undo', 1000); return; }
+      redoStack.push(JSON.stringify(graph));
+      var state = JSON.parse(undoStack.pop());
+      graph = state;
+      selectedNodeId = null;
+      render();
+      showToast('Undo', 1000);
+    }
+
+    function redo() {
+      if (redoStack.length === 0) { showToast('Nothing to redo', 1000); return; }
+      undoStack.push(JSON.stringify(graph));
+      var state = JSON.parse(redoStack.pop());
+      graph = state;
+      selectedNodeId = null;
+      render();
+      showToast('Redo', 1000);
+    }
 
     // --- Interactive Chat Modal ---
     var chatHasUserMessages = false;
@@ -2515,7 +2642,14 @@ function buildStudioHtml(): string {
 
         const hasTemplateRef = value.indexOf('{{') !== -1;
         const inputType = (isNumber && !hasTemplateRef) ? 'number' : 'text';
-        return '<div class="field-label-row"><label class="muted">' + label + requiredBadge + '</label>' + hintIcon + '</div>'
+
+        // Add Browse button for file path fields on io.writeFile
+        var browseBtn = '';
+        if (key === 'path' && node.type === 'io.writeFile') {
+          browseBtn = ' <button type="button" class="secondary browse-file-btn" style="font-size:10px;padding:2px 8px;margin-left:6px;vertical-align:middle;">Browse</button>';
+        }
+
+        return '<div class="field-label-row"><label class="muted">' + label + requiredBadge + '</label>' + hintIcon + browseBtn + '</div>'
           + '<input data-node-field="1" data-field-key="' + escapeHtml(key) + '" data-field-type="' + escapeHtml(fieldType) + '" type="' + inputType + '" value="' + escapeHtml(value) + '"' + placeholderAttr + ' style="margin-top:4px;" class="autocomplete-field" />'
           + badge + helper;
       });
@@ -2567,6 +2701,36 @@ function buildStudioHtml(): string {
         btn.addEventListener('click', function(e) {
           e.preventDefault();
           openPromptPicker();
+        });
+      });
+
+      // Wire Browse file picker (Electron only)
+      nodeForm.querySelectorAll('.browse-file-btn').forEach(function(btn) {
+        btn.addEventListener('click', async function(e) {
+          e.preventDefault();
+          var pathInput = nodeForm.querySelector('[data-field-key="path"]');
+          if (!pathInput) return;
+
+          if (window.electronAPI && window.electronAPI.isElectron) {
+            var currentVal = pathInput.value || 'output.md';
+            var ext = currentVal.split('.').pop() || 'md';
+            var result = await window.electronAPI.showSaveDialog({
+              title: 'Save workflow output',
+              defaultPath: currentVal,
+              filters: [
+                { name: 'Markdown', extensions: ['md'] },
+                { name: 'JSON', extensions: ['json'] },
+                { name: 'Text', extensions: ['txt'] },
+                { name: 'All Files', extensions: ['*'] },
+              ],
+            });
+            if (!result.canceled && result.filePath) {
+              pathInput.value = result.filePath;
+              pathInput.dispatchEvent(new Event('input'));
+            }
+          } else {
+            showToast('File picker available in the desktop app', 2000);
+          }
         });
       });
     }
@@ -2934,6 +3098,7 @@ function buildStudioHtml(): string {
           });
           delBtn.addEventListener('click', (event) => {
             event.stopPropagation();
+            pushUndo();
             graph.edges.splice(idx, 1);
             hoveredEdgeIdx = null;
             render();
@@ -2972,6 +3137,7 @@ function buildStudioHtml(): string {
         btn.className = 'danger';
         btn.textContent = 'Remove';
         btn.onclick = () => {
+          pushUndo();
           graph.edges.splice(idx, 1);
           render();
         };
@@ -3104,6 +3270,7 @@ function buildStudioHtml(): string {
           if (targetId && targetId !== wireDrag.fromNodeId) {
             graph.edges = graph.edges || [];
             if (!graph.edges.some(e => e.from === wireDrag.fromNodeId && e.to === targetId)) {
+              pushUndo();
               graph.edges.push({ from: wireDrag.fromNodeId, to: targetId });
             }
           }
@@ -3304,7 +3471,8 @@ function buildStudioHtml(): string {
       debouncedSaveUiState();
     }
 
-    function addNodeFromDefinition(def) {
+    function addNodeFromDefinition(def, posX, posY) {
+      pushUndo();
       const count = graph.nodes.length + 1;
       const idBase = def.type.split('.').pop() || 'node';
       let id = idBase + count;
@@ -3317,18 +3485,25 @@ function buildStudioHtml(): string {
         if (field.defaultValue !== undefined) config[field.key] = field.defaultValue;
       });
 
-      // Position new node at the center of the currently visible canvas area
-      var wrap = canvas.parentElement;
-      var centerX = Math.round(wrap.scrollLeft + wrap.clientWidth / 2 - 80);
-      var centerY = Math.round(wrap.scrollTop + wrap.clientHeight / 2 - 20);
-      // Stagger slightly so multiple adds don't stack exactly
-      var stagger = (count % 5) * 30;
+      // Position: use provided coords (context menu) or center of visible canvas
+      var nodeX, nodeY;
+      if (posX !== undefined && posY !== undefined) {
+        nodeX = posX;
+        nodeY = posY;
+      } else {
+        var wrap = canvas.parentElement;
+        var centerX = Math.round(wrap.scrollLeft + wrap.clientWidth / 2 - 80);
+        var centerY = Math.round(wrap.scrollTop + wrap.clientHeight / 2 - 20);
+        var stagger = (count % 5) * 30;
+        nodeX = Math.max(10, centerX + stagger);
+        nodeY = Math.max(10, centerY + stagger);
+      }
 
       graph.nodes.push({
         id,
         type: def.type,
         label: def.title,
-        position: { x: Math.max(10, centerX + stagger), y: Math.max(10, centerY + stagger) },
+        position: { x: nodeX, y: nodeY },
         config,
       });
       selectNode(id);
@@ -3336,6 +3511,7 @@ function buildStudioHtml(): string {
     }
 
     function loadTemplate(t) {
+      pushUndo();
       graph = JSON.parse(JSON.stringify(t));
       graph.nodes = (graph.nodes || []).map((n, idx) => ensureNodeDefaults(n, idx));
       graph.edges = graph.edges || [];
@@ -3353,6 +3529,7 @@ function buildStudioHtml(): string {
       renderNodeEditor();
       render();
       if (typeof saveUiState === 'function') saveUiState();
+      showToast('Loaded: ' + (t.name || 'Template'), 1500);
     }
 
     async function refreshSavedWorkflows() {
@@ -3499,7 +3676,7 @@ function buildStudioHtml(): string {
         if (!templatesByCategory[cat]) templatesByCategory[cat] = [];
         templatesByCategory[cat].push({ template: t, idx: idx });
       });
-      var templateCategoryColors = { 'Planning & Research': '#4f7cff', 'Ticket Generation': '#a78bfa', 'End-to-End': '#3ddc84', 'Incident Management': '#ff4444', 'Reporting': '#00bcd4' };
+      var templateCategoryColors = { 'Getting Started': '#f59e0b', 'Planning & Research': '#4f7cff', 'Ticket Generation': '#a78bfa', 'End-to-End': '#3ddc84', 'Incident Management': '#ff4444', 'Reporting': '#00bcd4' };
       var templatesHtml = '';
       for (var cat in templatesByCategory) {
         var items = templatesByCategory[cat];
@@ -3623,27 +3800,144 @@ function buildStudioHtml(): string {
 
     deleteNodeBtn.onclick = () => {
       if (!selectedNodeId) return;
+      var deletedLabel = (graph.nodes.find(n => n.id === selectedNodeId) || {}).label || selectedNodeId;
+      pushUndo();
       graph.nodes = graph.nodes.filter(n => n.id !== selectedNodeId);
       graph.edges = (graph.edges || []).filter(e => e.from !== selectedNodeId && e.to !== selectedNodeId);
       selectedNodeId = null;
       selectNode(null);
       render();
+      showToast('Deleted ' + deletedLabel, 1200);
     };
 
     // Delete key shortcut for selected node
     document.addEventListener('keydown', function(e) {
+      // Don't intercept if user is typing in an input/textarea
+      var tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : '';
+      if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+
+      // Undo: Cmd/Ctrl+Z
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === 'z') {
+        e.preventDefault();
+        undo();
+        return;
+      }
+      // Redo: Cmd/Ctrl+Shift+Z
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'z') {
+        e.preventDefault();
+        redo();
+        return;
+      }
+
       if (e.key === 'Delete' || e.key === 'Backspace') {
-        // Don't intercept if user is typing in an input/textarea
-        var tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : '';
-        if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
         if (!selectedNodeId || isRunning) return;
         e.preventDefault();
+        var deletedLabel = (graph.nodes.find(function(n) { return n.id === selectedNodeId; }) || {}).label || selectedNodeId;
+        pushUndo();
         graph.nodes = graph.nodes.filter(function(n) { return n.id !== selectedNodeId; });
         graph.edges = (graph.edges || []).filter(function(e2) { return e2.from !== selectedNodeId && e2.to !== selectedNodeId; });
         selectedNodeId = null;
         selectNode(null);
         render();
+        showToast('Deleted ' + deletedLabel, 1200);
       }
+    });
+
+    // --- Right-click context menu on canvas ---
+    var ctxMenu = null;
+    function removeCtxMenu() {
+      if (ctxMenu) { ctxMenu.remove(); ctxMenu = null; }
+    }
+    document.addEventListener('click', function(e) {
+      if (ctxMenu && !ctxMenu.contains(e.target)) removeCtxMenu();
+    });
+
+    canvas.addEventListener('contextmenu', function(e) {
+      e.preventDefault();
+      removeCtxMenu();
+
+      var pt = getCanvasPoint(e.clientX, e.clientY);
+
+      ctxMenu = document.createElement('div');
+      ctxMenu.style.cssText = 'position:fixed;z-index:10000;background:#1a1f2e;border:1px solid #333a4a;border-radius:8px;padding:0;min-width:220px;max-height:420px;box-shadow:0 8px 32px rgba(0,0,0,0.6);font-size:13px;color:#e8eaf0;display:flex;flex-direction:column;';
+      ctxMenu.style.left = e.clientX + 'px';
+      ctxMenu.style.top = e.clientY + 'px';
+
+      // Search input
+      var searchWrap = document.createElement('div');
+      searchWrap.style.cssText = 'padding:8px 8px 4px;border-bottom:1px solid #272b36;flex-shrink:0;';
+      var searchInput = document.createElement('input');
+      searchInput.type = 'text';
+      searchInput.placeholder = 'Search nodes...';
+      searchInput.style.cssText = 'width:100%;background:#0f1117;color:#e8eaf0;border:1px solid #343a4d;border-radius:5px;padding:6px 8px;font-size:12px;box-sizing:border-box;outline:none;';
+      searchWrap.appendChild(searchInput);
+      ctxMenu.appendChild(searchWrap);
+
+      // Scrollable items container
+      var itemsWrap = document.createElement('div');
+      itemsWrap.style.cssText = 'overflow-y:auto;flex:1;padding:4px 0;';
+      ctxMenu.appendChild(itemsWrap);
+
+      // Group nodeDefs by category
+      var cats = {};
+      nodeDefs.forEach(function(def) {
+        var cat = def.category || 'Other';
+        if (!cats[cat]) cats[cat] = [];
+        cats[cat].push(def);
+      });
+
+      function buildItems(filter) {
+        itemsWrap.innerHTML = '';
+        var q = (filter || '').toLowerCase();
+        var hasResults = false;
+
+        for (var cat in cats) {
+          var matching = cats[cat].filter(function(def) {
+            return !q || def.title.toLowerCase().indexOf(q) !== -1 || def.type.toLowerCase().indexOf(q) !== -1 || (def.description && def.description.toLowerCase().indexOf(q) !== -1);
+          });
+          if (matching.length === 0) continue;
+          hasResults = true;
+
+          var header = document.createElement('div');
+          header.textContent = cat;
+          header.style.cssText = 'padding:4px 14px;font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:#6b7394;font-weight:600;';
+          itemsWrap.appendChild(header);
+
+          matching.forEach(function(def) {
+            var item = document.createElement('div');
+            item.textContent = def.title;
+            item.title = def.description || '';
+            item.style.cssText = 'padding:6px 14px;cursor:pointer;white-space:nowrap;border-radius:4px;margin:0 4px;transition:background 0.1s;';
+            item.addEventListener('mouseenter', function() { item.style.background = '#272b36'; });
+            item.addEventListener('mouseleave', function() { item.style.background = 'none'; });
+            item.addEventListener('click', function() {
+              addNodeFromDefinition(def, pt.x, pt.y);
+              removeCtxMenu();
+              showToast('Added ' + def.title, 1200);
+            });
+            itemsWrap.appendChild(item);
+          });
+        }
+
+        if (!hasResults) {
+          var empty = document.createElement('div');
+          empty.textContent = 'No matching nodes';
+          empty.style.cssText = 'padding:12px 14px;color:#6b7394;font-style:italic;';
+          itemsWrap.appendChild(empty);
+        }
+      }
+
+      buildItems('');
+
+      searchInput.addEventListener('input', function() { buildItems(searchInput.value); });
+      searchInput.addEventListener('keydown', function(e) { e.stopPropagation(); });
+
+      // Keep menu within viewport
+      document.body.appendChild(ctxMenu);
+      searchInput.focus();
+      var menuRect = ctxMenu.getBoundingClientRect();
+      if (menuRect.right > window.innerWidth) ctxMenu.style.left = (window.innerWidth - menuRect.width - 8) + 'px';
+      if (menuRect.bottom > window.innerHeight) ctxMenu.style.top = (window.innerHeight - menuRect.height - 8) + 'px';
     });
 
     function setRunState(running) {
@@ -3691,7 +3985,12 @@ function buildStudioHtml(): string {
 
               if (event.type === 'node-start') {
                 nodeStates[event.nodeId] = 'running';
+                nodeStartTimes[event.nodeId] = Date.now();
                 resultEl.textContent = 'Running node: ' + event.nodeId + ' (' + event.nodeType + ')';
+                // Update title bar with progress (visible in taskbar/dock when app is backgrounded)
+                var doneCount = Object.values(nodeStates).filter(function(s) { return s === 'completed' || s === 'warning'; }).length;
+                var totalCount = graph.nodes.length;
+                document.title = '(' + doneCount + '/' + totalCount + ') Running... \u2014 Workflow Studio';
                 render();
               } else if (event.type === 'node-complete') {
                 const output = event.result?.output || {};
@@ -3709,13 +4008,27 @@ function buildStudioHtml(): string {
                   // Store warning detail for the banner
                   if (!nodeWarnings) nodeWarnings = {};
                   nodeWarnings[event.nodeId] = emptyAiOutput
-                    ? 'AI returned empty output — the model may not have generated a response for this run.'
+                    ? 'AI returned empty output \u2014 the model may not have generated a response for this run.'
                     : (output.warning || 'Node produced no results.');
                 } else {
                   nodeStates[event.nodeId] = 'completed';
                 }
                 const dur = event.result?.durationMs;
                 resultEl.textContent = 'Completed: ' + event.nodeId + (dur ? ' (' + (dur / 1000).toFixed(1) + 's)' : '');
+
+                // Per-node notification for long-running AI operations
+                if (notifSettings.perNode && nodeStartTimes[event.nodeId]) {
+                  var nodeElapsed = Date.now() - nodeStartTimes[event.nodeId];
+                  var nodeType = event.result?.nodeType || '';
+                  var isAiNode = nodeType.startsWith('ai.') || nodeType.startsWith('image.') || nodeType === 'web.scrapeAndSummarize';
+                  if (isAiNode && nodeElapsed >= notifSettings.thresholdSec * 1000) {
+                    var nodeName = event.nodeId;
+                    var nodeNode = graph.nodes.find(function(n) { return n.id === event.nodeId; });
+                    if (nodeNode && nodeNode.label) nodeName = nodeNode.label;
+                    fireNotification('Node Complete: ' + nodeName, 'Finished in ' + (nodeElapsed / 1000).toFixed(1) + 's');
+                  }
+                }
+                delete nodeStartTimes[event.nodeId];
                 render();
               } else if (event.type === 'node-pause') {
                 // Interactive chat node is waiting for user input
@@ -3739,6 +4052,7 @@ function buildStudioHtml(): string {
                 }
               } else if (event.type === 'node-error') {
                 nodeStates[event.nodeId] = 'errored';
+                delete nodeStartTimes[event.nodeId];
                 var errText = event.result?.error || 'Unknown error';
                 resultEl.textContent = 'Error in ' + event.nodeId + ': ' + errText;
                 render();
@@ -3748,6 +4062,9 @@ function buildStudioHtml(): string {
                 }
               } else if (event.type === 'workflow-complete') {
                 finalResult = event.workflowResult;
+                // Reset title immediately (don't wait for stream close)
+                document.title = 'Workflow Studio';
+                nodeStartTimes = {};
               }
             } catch (parseErr) {
               // Skip malformed SSE lines
@@ -3836,6 +4153,15 @@ function buildStudioHtml(): string {
         resultEl.textContent = 'Run error: ' + String(error);
       } finally {
         setRunState(false);
+        // OS notification when workflow finishes
+        var notifyTitle = finalResult && finalResult.success ? 'Workflow Complete' : 'Workflow Failed';
+        var notifyBody = finalResult
+          ? ((finalResult.order || []).length + ' nodes executed in ' + ((finalResult.durationMs / 1000).toFixed(1)) + 's')
+          : 'An error occurred during execution';
+        fireNotification(notifyTitle, notifyBody);
+        // Safety net: ensure title is always reset
+        document.title = 'Workflow Studio';
+        nodeStartTimes = {};
       }
     }
 
@@ -3884,8 +4210,10 @@ function buildStudioHtml(): string {
         workflowPath.value = body.path;
         resultEl.textContent = 'Saved to ' + body.path;
         await refreshSavedWorkflows();
+        showToast('Workflow saved', 1500);
       } catch (error) {
         resultEl.textContent = 'Save failed: ' + String(error);
+        showToast('Save failed', 2000);
       }
     };
 
@@ -3896,6 +4224,68 @@ function buildStudioHtml(): string {
 
     previewBtn.onclick = () => setOutputView('preview');
     rawBtn.onclick = () => setOutputView('raw');
+
+    // Download output button
+    document.getElementById('downloadOutputBtn').onclick = function() {
+      if (!outputState.content) { showToast('No output to download', 1500); return; }
+      var ext = outputState.markdown ? '.md' : '.txt';
+      var filename = (outputState.path ? outputState.path.split('/').pop() : 'workflow-output' + ext);
+      var blob = new Blob([outputState.content], { type: 'text/plain;charset=utf-8' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast('Downloaded ' + filename, 1500);
+    };
+
+    // --- Notification settings modal ---
+    var notifModal = document.getElementById('notifModal');
+    var notifEnabledEl = document.getElementById('notifEnabled');
+    var notifOnlyBgEl = document.getElementById('notifOnlyBackground');
+    var notifPerNodeEl = document.getElementById('notifPerNode');
+    var notifThresholdEl = document.getElementById('notifThreshold');
+    var notifThresholdWrap = document.getElementById('notifThresholdWrap');
+
+    function syncNotifUI() {
+      notifEnabledEl.checked = notifSettings.enabled;
+      notifOnlyBgEl.checked = notifSettings.onlyBackground;
+      notifPerNodeEl.checked = notifSettings.perNode;
+      notifThresholdEl.value = notifSettings.thresholdSec;
+      notifThresholdWrap.style.opacity = notifSettings.perNode ? '1' : '0.4';
+      notifThresholdEl.disabled = !notifSettings.perNode;
+    }
+
+    document.getElementById('notifSettingsBtn').onclick = function() {
+      syncNotifUI();
+      notifModal.style.display = 'flex';
+    };
+    document.getElementById('notifModalClose').onclick = function() {
+      notifModal.style.display = 'none';
+    };
+    notifModal.onclick = function(e) {
+      if (e.target === notifModal) notifModal.style.display = 'none';
+    };
+    notifPerNodeEl.onchange = function() {
+      notifThresholdWrap.style.opacity = notifPerNodeEl.checked ? '1' : '0.4';
+      notifThresholdEl.disabled = !notifPerNodeEl.checked;
+    };
+    document.getElementById('notifSave').onclick = function() {
+      notifSettings.enabled = notifEnabledEl.checked;
+      notifSettings.onlyBackground = notifOnlyBgEl.checked;
+      notifSettings.perNode = notifPerNodeEl.checked;
+      notifSettings.thresholdSec = Math.max(5, parseInt(notifThresholdEl.value, 10) || 30);
+      saveNotifSettings(notifSettings);
+      notifModal.style.display = 'none';
+      showToast('Notification settings saved', 1500);
+      // Request permission if enabling notifications and not yet granted
+      if (notifSettings.enabled && 'Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission();
+      }
+    };
 
     // --- Output/Result tab switching ---
     const outputTabBtn = document.getElementById('outputTabBtn');
@@ -4723,7 +5113,7 @@ function buildStudioHtml(): string {
         {
           target: '#panelTabTemplates',
           title: 'Start with Templates',
-          text: 'The fastest way to get started. Click Templates to browse pre-built workflows for common tasks like Jira analysis, spec writing, and more.',
+          text: 'The fastest way to get started. The <strong style="color:#f59e0b;">Getting Started</strong> templates work immediately with no credentials. For Jira and ADO workflows, configure credentials via the Setup button first.',
           action: function() {
             document.getElementById('panelTabTemplates').click();
           }
@@ -4756,8 +5146,8 @@ function buildStudioHtml(): string {
         },
         {
           target: null,
-          title: 'Tips & Tricks',
-          text: 'Double-click a node to edit its config. Right-click the canvas to add nodes quickly. Use Cmd/Ctrl+Z to undo. Scroll to zoom. Most workflows need Jira or ADO credentials configured via the Setup button.',
+          title: 'Tips & AI Nodes',
+          text: '<strong style="color:#a78bfa;">AI nodes are the heart of Workflow Studio.</strong> They use Claude to analyze, generate, and transform data between steps — turning simple automations into intelligent workflows.<br><br>Right-click the canvas to add nodes quickly. Use Cmd/Ctrl+Z to undo. Scroll to zoom. Most workflows need Jira or ADO credentials configured via the Setup button.',
           center: true
         }
       ];

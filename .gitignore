@@ -33,6 +33,9 @@ data/workflows/*
 *.key
 *.keyfile
 
+# Test coverage
+coverage/
+
 # OS
 .DS_Store
 Thumbs.db

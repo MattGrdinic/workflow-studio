@@ -391,6 +391,51 @@ function buildUpstreamText(previousResults: Record<string, NodeExecutionResult>)
   return upstreamValue;
 }
 
+// --- Output format converters ---
+
+export function markdownToJiraWiki(md: string): string {
+  return md
+    // Code blocks (fenced) — must come before inline transforms
+    .replace(/```(\w*)\n([\s\S]*?)```/g, (_m, lang, code) => `{code:language=${lang || 'none'}}\n${code}{code}`)
+    // Headers
+    .replace(/^######\s+(.+)$/gm, 'h6. $1')
+    .replace(/^#####\s+(.+)$/gm, 'h5. $1')
+    .replace(/^####\s+(.+)$/gm, 'h4. $1')
+    .replace(/^###\s+(.+)$/gm, 'h3. $1')
+    .replace(/^##\s+(.+)$/gm, 'h2. $1')
+    .replace(/^#\s+(.+)$/gm, 'h1. $1')
+    // Bold+italic, bold, then italic — use sentinel \x00 to protect converted bold
+    .replace(/\*\*\*(.+?)\*\*\*/g, '\x00_$1_\x00')
+    .replace(/\*\*(.+?)\*\*/g, '\x00$1\x00')
+    .replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, '_$1_')
+    .replace(/\x00/g, '*')
+    // Inline code
+    .replace(/`([^`]+)`/g, '{{$1}}')
+    // Links
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '[$1|$2]')
+    // Unordered list items
+    .replace(/^\s*[-*]\s+/gm, '* ')
+    // Ordered list items
+    .replace(/^\s*\d+\.\s+/gm, '# ')
+    // Horizontal rules
+    .replace(/^---+$/gm, '----')
+    // Blockquotes
+    .replace(/^>\s+(.+)$/gm, '{quote}$1{quote}');
+}
+
+export function stripMarkdown(md: string): string {
+  return md
+    .replace(/```[\s\S]*?```/g, (m) => m.replace(/```\w*\n?/g, '').replace(/```/g, ''))
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/\*(.+?)\*/g, '$1')
+    .replace(/_(.+?)_/g, '$1')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/^[-*]\s+/gm, '  - ')
+    .replace(/^>\s+/gm, '');
+}
+
 const executorRegistry: Record<string, NodeExecutor> = {
   'jira.extractTicketKey': async (ctx) => {
     const ticket = String(ctx.resolvedConfig.ticket || '').trim();
@@ -1341,18 +1386,30 @@ const executorRegistry: Record<string, NodeExecutor> = {
   'io.writeFile': async (ctx) => {
     const outputPath = resolve(ctx.runContext.cwd, String(ctx.resolvedConfig.path || 'output.txt'));
     const content = ctx.resolvedConfig.content;
-    const prettyJson = Boolean(ctx.resolvedConfig.prettyJson);
+    const format = String(ctx.resolvedConfig.outputFormat || ctx.resolvedConfig.prettyJson ? 'json' : 'markdown');
 
-    const text = typeof content === 'string'
-      ? content
-      : JSON.stringify(content, null, prettyJson ? 2 : 0);
+    let text: string;
+    if (typeof content !== 'string') {
+      text = JSON.stringify(content, null, 2);
+    } else if (format === 'json') {
+      try { text = JSON.stringify(JSON.parse(content), null, 2); } catch { text = content; }
+    } else if (format === 'jira') {
+      text = markdownToJiraWiki(content);
+    } else if (format === 'text') {
+      text = stripMarkdown(content);
+    } else {
+      text = content;
+    }
 
+    const dir = pathDirname(outputPath);
+    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
     writeFileSync(outputPath, text, 'utf-8');
 
     return {
       path: outputPath,
       bytes: Buffer.byteLength(text, 'utf-8'),
       written: true,
+      format,
     };
   },
 
@@ -3169,7 +3226,7 @@ function resolveNodeValue(
   return value;
 }
 
-function extractRefsFromNode(node: WorkflowNode): string[] {
+export function extractRefsFromNode(node: WorkflowNode): string[] {
   const refs = new Set<string>();
 
   const scan = (value: NodeValue): void => {
@@ -3229,7 +3286,7 @@ function resolveConfigRef(
   return getNestedValue(node.config as Record<string, unknown>, pathParts.join('.'));
 }
 
-function getNestedValue(root: unknown, path: string): unknown {
+export function getNestedValue(root: unknown, path: string): unknown {
   if (!root || !path) return undefined;
 
   const parts = path.split('.');
@@ -3253,7 +3310,7 @@ function collectFlatOutputs(
   return flat;
 }
 
-function renderTemplate(template: string, variables: Record<string, NodeValue>): string {
+export function renderTemplate(template: string, variables: Record<string, NodeValue>): string {
   return template.replace(/\{\{\s*([^}]+?)\s*\}\}/g, (_match, token: string) => {
     const key = token.trim();
     const value = getNestedValue(variables, key);

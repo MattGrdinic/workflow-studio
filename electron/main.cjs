@@ -1,4 +1,4 @@
-const { app, BrowserWindow, shell, dialog } = require('electron');
+const { app, BrowserWindow, shell, dialog, ipcMain, Notification } = require('electron');
 const { spawn, execSync } = require('child_process');
 const path = require('path');
 const net = require('net');
@@ -128,6 +128,13 @@ function waitForServer(retries = 30, interval = 200) {
   });
 }
 
+function getPreloadPath() {
+  if (app.isPackaged) {
+    return path.join(process.resourcesPath, 'electron', 'preload.cjs');
+  }
+  return path.join(__dirname, 'preload.cjs');
+}
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1400,
@@ -136,6 +143,7 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
+      preload: getPreloadPath(),
     },
   });
 
@@ -154,6 +162,36 @@ function createWindow() {
     mainWindow = null;
   });
 }
+
+// --- IPC Handlers ---
+
+ipcMain.handle('dialog:save', async (_event, options) => {
+  if (!mainWindow) return { canceled: true };
+  const result = await dialog.showSaveDialog(mainWindow, {
+    title: options.title || 'Save File',
+    defaultPath: options.defaultPath || 'output.md',
+    filters: options.filters || [
+      { name: 'Markdown', extensions: ['md'] },
+      { name: 'Text', extensions: ['txt'] },
+      { name: 'JSON', extensions: ['json'] },
+      { name: 'All Files', extensions: ['*'] },
+    ],
+  });
+  return result;
+});
+
+ipcMain.handle('notification:show', async (_event, title, body) => {
+  if (Notification.isSupported()) {
+    const n = new Notification({ title, body });
+    n.on('click', () => {
+      if (mainWindow) {
+        mainWindow.show();
+        mainWindow.focus();
+      }
+    });
+    n.show();
+  }
+});
 
 app.whenReady().then(async () => {
   startServer();
