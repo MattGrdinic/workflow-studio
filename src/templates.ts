@@ -1823,6 +1823,249 @@ export const CHANGE_IMPACT_TEMPLATE: WorkflowGraph = {
   },
 };
 
+// ============================================
+// Getting Started templates (no credentials required)
+// ============================================
+
+export const AI_BRAINSTORM_TEMPLATE: WorkflowGraph = {
+  id: 'ai-brainstorm',
+  name: 'AI Brainstorm',
+  description: 'No credentials needed. Describe a topic and AI generates a structured brainstorm with ideas, pros/cons, and next steps. Great for trying Workflow Studio for the first time.',
+  category: 'Getting Started',
+  nodes: [
+    {
+      id: 'topic',
+      type: 'transform.template',
+      label: 'Define Topic',
+      position: { x: 40, y: 80 },
+      config: {
+        template: '{{vars.topic}}',
+      },
+    },
+    {
+      id: 'brainstorm',
+      type: 'ai.runPrompt',
+      label: 'AI Brainstorm',
+      position: { x: 320, y: 80 },
+      config: {
+        model: '{{vars.model}}',
+        timeoutMs: 120000,
+        prompt: [
+          'You are a creative strategist. Brainstorm the following topic thoroughly.',
+          '',
+          'TOPIC: {{topic.content}}',
+          '',
+          'Produce a structured brainstorm with these sections:',
+          '',
+          '## Ideas',
+          'Generate 5-8 creative ideas or approaches.',
+          '',
+          '## Pros & Cons',
+          'For the top 3 ideas, list key advantages and disadvantages.',
+          '',
+          '## Recommended Approach',
+          'Suggest which idea (or combination) is strongest and why.',
+          '',
+          '## Next Steps',
+          'List 3-5 concrete next actions to move forward.',
+        ].join('\n'),
+      },
+    },
+    {
+      id: 'review',
+      type: 'ai.interactiveChat',
+      label: 'Review & Refine',
+      position: { x: 600, y: 80 },
+      config: {
+        model: '{{vars.model}}',
+        maxTurns: 20,
+      },
+    },
+    {
+      id: 'save',
+      type: 'io.writeFile',
+      label: 'Save Result',
+      position: { x: 880, y: 80 },
+      config: {
+        path: '{{vars.outputPath}}',
+        content: '{{review.text}}',
+      },
+    },
+  ],
+  edges: [
+    { from: 'topic', to: 'brainstorm' },
+    { from: 'brainstorm', to: 'review' },
+    { from: 'review', to: 'save' },
+  ],
+  variables: {
+    topic: 'How to improve developer onboarding at a mid-size startup',
+    model: 'sonnet',
+    outputPath: 'data/Output/brainstorm.md',
+  },
+};
+
+export const AI_DOCUMENT_WRITER_TEMPLATE: WorkflowGraph = {
+  id: 'ai-document-writer',
+  name: 'AI Document Writer',
+  description: 'No credentials needed. Write any document (RFC, design doc, meeting notes, blog post) from a spec. AI drafts the full document, you review and refine interactively, then save.',
+  category: 'Getting Started',
+  nodes: [
+    {
+      id: 'spec',
+      type: 'spec.input',
+      label: 'Document Spec',
+      position: { x: 40, y: 80 },
+      config: {
+        title: '{{vars.docTitle}}',
+        objective: '{{vars.docObjective}}',
+        scope: '',
+        constraints: '',
+        acceptanceCriteria: '',
+        deliverables: '',
+        notes: '',
+      },
+    },
+    {
+      id: 'draft',
+      type: 'ai.runPrompt',
+      label: 'AI Draft',
+      position: { x: 320, y: 80 },
+      config: {
+        model: '{{vars.model}}',
+        timeoutMs: 180000,
+        prompt: [
+          'Write a professional document based on this specification.',
+          '',
+          '{{spec.specText}}',
+          '',
+          'Requirements:',
+          '- Use clear, professional markdown formatting',
+          '- Include a title, introduction, main sections, and conclusion',
+          '- Be thorough but concise',
+          '- Use bullet points and tables where appropriate',
+        ].join('\n'),
+      },
+    },
+    {
+      id: 'review',
+      type: 'ai.interactiveChat',
+      label: 'Review & Refine',
+      position: { x: 600, y: 80 },
+      config: {
+        model: '{{vars.model}}',
+        maxTurns: 20,
+      },
+    },
+    {
+      id: 'save',
+      type: 'io.writeFile',
+      label: 'Save Document',
+      position: { x: 880, y: 80 },
+      config: {
+        path: '{{vars.outputPath}}',
+        content: '{{review.text}}',
+      },
+    },
+  ],
+  edges: [
+    { from: 'spec', to: 'draft' },
+    { from: 'draft', to: 'review' },
+    { from: 'review', to: 'save' },
+  ],
+  variables: {
+    docTitle: 'Technical Design Document',
+    docObjective: 'Describe the architecture and implementation plan',
+    model: 'sonnet',
+    outputPath: 'data/Output/document.md',
+  },
+};
+
+export const AI_CODE_REVIEWER_TEMPLATE: WorkflowGraph = {
+  id: 'ai-code-reviewer',
+  name: 'AI Code Review',
+  description: 'No credentials needed. Paste code into a file, and AI performs a thorough code review covering bugs, security, performance, and style. Review and refine the feedback interactively.',
+  category: 'Getting Started',
+  nodes: [
+    {
+      id: 'code',
+      type: 'io.readFile',
+      label: 'Read Code',
+      position: { x: 40, y: 80 },
+      config: {
+        path: '{{vars.codePath}}',
+      },
+    },
+    {
+      id: 'reviewAi',
+      type: 'ai.runPrompt',
+      label: 'AI Review',
+      position: { x: 320, y: 80 },
+      config: {
+        model: '{{vars.model}}',
+        timeoutMs: 180000,
+        prompt: [
+          'You are a senior software engineer performing a thorough code review.',
+          '',
+          'CODE TO REVIEW:',
+          '```',
+          '{{code.content}}',
+          '```',
+          '',
+          'Review this code and provide feedback in these categories:',
+          '',
+          '## Bugs & Correctness',
+          'Any logic errors, edge cases, or potential runtime failures.',
+          '',
+          '## Security',
+          'Injection risks, auth issues, data exposure, OWASP concerns.',
+          '',
+          '## Performance',
+          'Inefficiencies, unnecessary allocations, N+1 queries, etc.',
+          '',
+          '## Code Quality',
+          'Readability, naming, structure, DRY violations, error handling.',
+          '',
+          '## Positive Notes',
+          'What is done well — call out good patterns.',
+          '',
+          '## Summary',
+          'Overall assessment and top 3 priority items to address.',
+        ].join('\n'),
+      },
+    },
+    {
+      id: 'refine',
+      type: 'ai.interactiveChat',
+      label: 'Discuss Findings',
+      position: { x: 600, y: 80 },
+      config: {
+        model: '{{vars.model}}',
+        maxTurns: 20,
+      },
+    },
+    {
+      id: 'save',
+      type: 'io.writeFile',
+      label: 'Save Review',
+      position: { x: 880, y: 80 },
+      config: {
+        path: '{{vars.outputPath}}',
+        content: '{{refine.text}}',
+      },
+    },
+  ],
+  edges: [
+    { from: 'code', to: 'reviewAi' },
+    { from: 'reviewAi', to: 'refine' },
+    { from: 'refine', to: 'save' },
+  ],
+  variables: {
+    codePath: 'src/server.ts',
+    model: 'sonnet',
+    outputPath: 'data/Output/code-review.md',
+  },
+};
+
 export function getStudioTemplates(): WorkflowGraph[] {
-  return [JIRA_PLAN_TEMPLATE, JIRA_RESEARCH_TEMPLATE, JIRA_RESEARCH_ADO_TEMPLATE, JIRA_RESEARCH_GUIDE_TEMPLATE, JIRA_REVIEW_REFINE_TEMPLATE, JIRA_TICKET_GENERATOR_TEMPLATE, JIRA_TICKET_GENERATOR_PR_TEMPLATE, JIRA_TICKET_TO_CODE_TEMPLATE, JIRA_SPEC_TO_CODE_TEMPLATE, DEEP_RESEARCH_TEMPLATE, INCIDENT_RESPONSE_TEMPLATE, SPRINT_REPORT_TEMPLATE, CHANGE_IMPACT_TEMPLATE];
+  return [AI_BRAINSTORM_TEMPLATE, AI_DOCUMENT_WRITER_TEMPLATE, AI_CODE_REVIEWER_TEMPLATE, JIRA_PLAN_TEMPLATE, JIRA_RESEARCH_TEMPLATE, JIRA_RESEARCH_ADO_TEMPLATE, JIRA_RESEARCH_GUIDE_TEMPLATE, JIRA_REVIEW_REFINE_TEMPLATE, JIRA_TICKET_GENERATOR_TEMPLATE, JIRA_TICKET_GENERATOR_PR_TEMPLATE, JIRA_TICKET_TO_CODE_TEMPLATE, JIRA_SPEC_TO_CODE_TEMPLATE, DEEP_RESEARCH_TEMPLATE, INCIDENT_RESPONSE_TEMPLATE, SPRINT_REPORT_TEMPLATE, CHANGE_IMPACT_TEMPLATE];
 }
