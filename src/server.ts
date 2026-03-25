@@ -3,10 +3,19 @@ import { request as httpsRequest } from 'https';
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from 'fs';
 import { dirname, join, relative, resolve } from 'path';
 import { randomBytes, createCipheriv, createDecipheriv } from 'crypto';
+import { fileURLToPath } from 'url';
 import { NODE_DEFINITIONS } from './definitions.js';
 import { executeWorkflowGraph, forceStopActiveExecutor, handleChatMessage, setWorkflowDebug } from './runtime.js';
 import { getStudioTemplates } from './templates.js';
 import type { NodeValue, WorkflowGraph, WorkflowProgressEvent } from './types.js';
+
+// Read version from package.json at startup
+const APP_VERSION = (() => {
+  try {
+    const pkgPath = join(dirname(fileURLToPath(import.meta.url)), '..', 'package.json');
+    return JSON.parse(readFileSync(pkgPath, 'utf-8')).version || 'unknown';
+  } catch { return 'unknown'; }
+})();
 
 // ============================================
 // Console output helpers (replaces @claude-flow/cli output module)
@@ -397,9 +406,29 @@ function buildStudioHtml(): string {
       </div>
     </aside>
     <main class="main">
-      <div>
-        <h1>Workflow Studio</h1>
-        <div class="muted">Drag nodes, wire edges explicitly, then save/load and run.</div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div>
+          <h1 style="margin-bottom:2px;">Workflow Studio</h1>
+          <div class="muted">Drag nodes, wire edges explicitly, then save/load and run.</div>
+        </div>
+        <div style="position:relative;">
+          <button id="aboutBtn" class="secondary" style="font-size:11px;padding:4px 10px;white-space:nowrap;">v${APP_VERSION}</button>
+          <div id="aboutMenu" style="display:none;position:absolute;right:0;top:110%;width:280px;background:#1a1f2e;border:1px solid #343a4d;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.5);z-index:9999;padding:14px 16px;font-size:13px;line-height:1.6;">
+            <div style="font-weight:600;margin-bottom:8px;color:#e8eaf0;">Workflow Studio <span style="color:#6b7394;font-weight:400;">v${APP_VERSION}</span></div>
+            <div style="color:#a6adbd;font-size:12px;margin-bottom:12px;">AI-powered workflow composition for Jira, Slack, and Azure DevOps.</div>
+            <div style="border-top:1px solid #272b36;padding-top:10px;font-size:12px;">
+              <div style="color:#8f98af;margin-bottom:6px;font-weight:600;">Uninstall</div>
+              <div style="color:#a6adbd;margin-bottom:4px;">macOS / Linux:</div>
+              <code style="display:block;background:#0f1117;padding:6px 8px;border-radius:4px;font-size:11px;color:#69a0ff;margin-bottom:8px;word-break:break-all;">sudo rm -rf /usr/local/lib/workflow-studio /usr/local/bin/workflow-studio</code>
+              <div style="color:#a6adbd;margin-bottom:4px;">Windows:</div>
+              <code style="display:block;background:#0f1117;padding:6px 8px;border-radius:4px;font-size:11px;color:#69a0ff;margin-bottom:8px;word-break:break-all;">Remove-Item -Recurse -Force "$env:LOCALAPPDATA\\workflow-studio"</code>
+              <div style="color:#6b7394;font-size:11px;">Desktop app: drag to Trash (Mac) or use Add/Remove Programs (Windows).</div>
+            </div>
+            <div style="border-top:1px solid #272b36;margin-top:10px;padding-top:10px;">
+              <a href="https://github.com/MattGrdinic/workflow-studio" target="_blank" style="color:#4f7cff;text-decoration:none;font-size:12px;">GitHub</a>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="toolbar">
@@ -684,6 +713,19 @@ function buildStudioHtml(): string {
   </div>
 
   <script>
+    // About menu toggle
+    const aboutBtn = document.getElementById('aboutBtn');
+    const aboutMenu = document.getElementById('aboutMenu');
+    aboutBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      aboutMenu.style.display = aboutMenu.style.display === 'none' ? 'block' : 'none';
+    });
+    document.addEventListener('click', function(e) {
+      if (!aboutMenu.contains(e.target) && e.target !== aboutBtn) {
+        aboutMenu.style.display = 'none';
+      }
+    });
+
     const nodeDefsEl = document.getElementById('nodeDefs');
     const templatesEl = document.getElementById('templates');
     const savedEl = document.getElementById('savedWorkflows');
