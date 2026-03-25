@@ -1,0 +1,18 @@
+services:
+  workflow-studio:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: workflow-studio:latest
+    container_name: workflow-studio
+    ports:
+      - "4317:4317"
+    environment:
+      AWS_PROFILE: ${AWS_PROFILE:-default}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      CLAUDE_CODE_USE_BEDROCK: "1"
+    volumes:
+      - ../data:/app/data
+      - ../certs:/app/certs
+      - ${HOME}/.aws:/home/node/.aws:ro
+    restart: unless-stopped

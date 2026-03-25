@@ -1,0 +1,48 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Sensitive config (created by setup wizard)
+data/.keyfile
+data/Jira/config/jira.env
+data/Slack/config/slack.env
+data/ADO/config/ado.env
+data/Skills
+
+# Extracted CA certificates (pulled from local machine during setup)
+certs/
+
+# Generated output (user data)
+data/Output/*
+!data/Output/.gitkeep
+
+# Saved workflows (user data)
+data/workflows/*
+!data/workflows/.gitkeep
+
+# Catch-all for env files and secrets
+*.env
+!*.env.example
+*.pem
+*.key
+*.keyfile
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs
+*.log
+.workflow-studio/
+
+# Container-local Claude auth state
+.docker/claude/
+.docker/claude.json

@@ -1,0 +1,29 @@
+{
+  "name": "workflow-studio",
+  "version": "1.0.0-alpha.1",
+  "description": "Node-based workflow studio for AI-powered Jira, Slack, and process composition",
+  "type": "module",
+  "main": "dist/cli.js",
+  "bin": {
+    "workflow-studio": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "esbuild src/cli.ts --bundle --platform=node --format=esm --target=node20 --outdir=dist --external:readline --external:@inquirer/prompts && node -e \"const fs=require('fs');const f='dist/cli.js';fs.writeFileSync(f,'#!/usr/bin/env node\\n'+fs.readFileSync(f,'utf8'))\" && chmod +x dist/cli.js",
+    "dev": "node --loader ts-node/esm src/cli.ts",
+    "start": "node dist/cli.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0",
+    "typescript": "^5.6.0"
+  },
+  "dependencies": {
+    "@inquirer/prompts": "^7.0.0"
+  },
+  "files": [
+    "dist"
+  ],
+  "license": "MIT"
+}
