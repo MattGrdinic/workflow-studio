@@ -83,8 +83,8 @@ need_cmd npm
 need_cmd curl
 
 info "Fetching latest release..."
-LATEST_TAG="$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" \
-  | grep '"tag_name"' | head -1 | sed 's/.*"tag_name": *"//;s/".*//')"
+LATEST_TAG="$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" 2>/dev/null \
+  | grep '"tag_name"' | head -1 | sed 's/.*"tag_name": *"//;s/".*//')" || true
 
 if [ -z "$LATEST_TAG" ]; then
   # No releases yet — fall back to main branch tarball
