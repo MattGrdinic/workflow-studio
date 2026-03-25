@@ -422,6 +422,7 @@ function buildStudioHtml(): string {
           <div class="muted">Drag nodes, wire edges explicitly, then save/load and run.</div>
         </div>
         <div style="position:relative;">
+          <button onclick="showWelcomeBanner()" class="secondary" style="font-size:11px;padding:4px 10px;white-space:nowrap;">Setup</button>
           <button id="aboutBtn" class="secondary" style="font-size:11px;padding:4px 10px;white-space:nowrap;">v${APP_VERSION}</button>
           <div id="aboutMenu" style="display:none;position:absolute;right:0;top:110%;width:280px;background:#1a1f2e;border:1px solid #343a4d;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.5);z-index:9999;padding:14px 16px;font-size:13px;line-height:1.6;">
             <div style="font-weight:600;margin-bottom:8px;color:#e8eaf0;">Workflow Studio <span style="color:#6b7394;font-weight:400;">v${APP_VERSION}</span></div>
@@ -4673,16 +4674,14 @@ function buildStudioHtml(): string {
       resultEl.textContent = 'Failed to load metadata: ' + String(error);
     });
 
+    function showWelcomeBanner() {
+      document.getElementById('welcomeBanner').style.display = 'block';
+    }
+
     async function checkStartupHealth() {
-      // Show welcome banner on first run (no configs exist yet)
+      // Show welcome banner on first launch
       if (!localStorage.getItem('ws_welcome_dismissed')) {
-        try {
-          var jiraRes = await fetch('/api/jira-config?path=' + encodeURIComponent(getJiraConfigPath()));
-          var jiraData = await jiraRes.json();
-          if (!jiraData.exists) {
-            document.getElementById('welcomeBanner').style.display = 'block';
-          }
-        } catch(e) { /* ignore */ }
+        showWelcomeBanner();
       }
 
       // Check Claude CLI status — re-check every 30s while banner is visible
