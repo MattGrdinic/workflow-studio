@@ -37,12 +37,14 @@ async function resize(size) {
     .toBuffer();
 }
 
-// macOS icons should fill the full square with no transparency —
-// the OS applies its own roundrect mask at display time.
+// macOS icons must fill the full square — the OS applies its own mask.
+// The source icon has transparency, so we flatten onto white.
+// For best results, provide an icon-source.png that fills the full square
+// edge-to-edge with no transparency or baked-in rounding.
 async function resizeMac(size) {
   return sharp(SOURCE)
-    .resize(size, size, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
-    .flatten({ background: { r: 18, g: 22, b: 36 } }) // match your icon's dark background
+    .resize(size, size, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 1 } })
+    .flatten({ background: { r: 255, g: 255, b: 255 } })
     .png()
     .toBuffer();
 }
