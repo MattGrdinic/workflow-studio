@@ -16,7 +16,7 @@ jobs:
       tag: ${{ steps.version.outputs.tag }}
       skipped: ${{ steps.version.outputs.skipped }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -47,9 +47,9 @@ jobs:
     if: needs.tag.outputs.skipped == 'false'
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 20
           cache: npm
@@ -68,7 +68,7 @@ jobs:
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4.6
         with:
           name: mac-builds
           path: release/*.zip
@@ -80,9 +80,9 @@ jobs:
     if: needs.tag.outputs.skipped == 'false'
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 20
           cache: npm
@@ -99,7 +99,7 @@ jobs:
         run: npx electron-builder --win --publish never
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4.6
         with:
           name: win-builds
           path: |
@@ -112,7 +112,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v4.3
         with:
           path: artifacts
 
