@@ -4685,7 +4685,12 @@ function buildStudioHtml(): string {
         } catch(e) { /* ignore */ }
       }
 
-      // Check Claude CLI status
+      // Check Claude CLI status — re-check every 30s while banner is visible
+      checkClaudeStatus();
+    }
+
+    var claudeCheckInterval = null;
+    async function checkClaudeStatus() {
       try {
         var claudeRes = await fetch('/api/claude-status');
         var claude = await claudeRes.json();
@@ -4696,6 +4701,15 @@ function buildStudioHtml(): string {
           banner.style.border = '1px solid #5c2a2a';
           banner.style.color = '#f0a0a0';
           banner.innerHTML = '<b>Claude CLI not found.</b> AI-powered nodes require the <code style="background:#1a1010;padding:2px 5px;border-radius:3px;">claude</code> binary on PATH. <a href="https://docs.anthropic.com/en/docs/claude-code/overview" target="_blank" style="color:#69a0ff;">Install Claude Code</a>';
+          if (!claudeCheckInterval) {
+            claudeCheckInterval = setInterval(checkClaudeStatus, 30000);
+          }
+        } else {
+          banner.style.display = 'none';
+          if (claudeCheckInterval) {
+            clearInterval(claudeCheckInterval);
+            claudeCheckInterval = null;
+          }
         }
       } catch(e) { /* ignore */ }
     }
