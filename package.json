@@ -3,7 +3,7 @@
   "version": "1.0.0-alpha.2",
   "description": "Node-based workflow studio for AI-powered Jira, Slack, and process composition",
   "type": "module",
-  "main": "electron/main.js",
+  "main": "electron/main.cjs",
   "bin": {
     "workflow-studio": "./dist/cli.js"
   },

@@ -29,10 +29,20 @@ if (!existsSync(SOURCE)) {
   process.exit(1);
 }
 
-// ── Resize helper ──────────────────────────────────────────────
+// ── Resize helpers ─────────────────────────────────────────────
 async function resize(size) {
   return sharp(SOURCE)
     .resize(size, size, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+    .png()
+    .toBuffer();
+}
+
+// macOS icons should fill the full square with no transparency —
+// the OS applies its own roundrect mask at display time.
+async function resizeMac(size) {
+  return sharp(SOURCE)
+    .resize(size, size, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+    .flatten({ background: { r: 18, g: 22, b: 36 } }) // match your icon's dark background
     .png()
     .toBuffer();
 }
@@ -85,7 +95,7 @@ async function generateIcns() {
   const iconsetSizes = [16, 32, 64, 128, 256, 512, 1024];
 
   for (const size of iconsetSizes) {
-    const buf = await resize(size);
+    const buf = await resizeMac(size);
     // Standard resolution
     if (size <= 512) {
       writeFileSync(join(iconsetDir, `icon_${size}x${size}.png`), buf);
