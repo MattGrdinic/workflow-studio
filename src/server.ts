@@ -2,9 +2,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'http';
 import { request as httpsRequest } from 'https';
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from 'fs';
 import { dirname, join, relative, resolve } from 'path';
-import { execSync } from 'child_process';
 import { randomBytes, createCipheriv, createDecipheriv } from 'crypto';
-import { input, confirm, password, select } from '@inquirer/prompts';
 import { NODE_DEFINITIONS } from './definitions.js';
 import { executeWorkflowGraph, forceStopActiveExecutor, handleChatMessage, setWorkflowDebug } from './runtime.js';
 import { getStudioTemplates } from './templates.js';
@@ -70,15 +68,6 @@ function getWorkflowRoot(cwd: string): string {
   return newPath; // default to new for fresh installs
 }
 
-function resolveConfigDir(cwd: string, service: 'jira' | 'slack'): string {
-  const newPath = resolve(cwd, `${WS_BASE}/${service === 'jira' ? 'Jira' : 'Slack'}/config`);
-  if (service === 'jira') {
-    const legacyPath = resolve(cwd, 'Jira/config');
-    if (!existsSync(newPath) && existsSync(legacyPath)) return legacyPath;
-  }
-  return newPath;
-}
-
 function resolveJiraConfigPath(cwd: string): string {
   const newPath = resolve(cwd, `${WS_BASE}/Jira/config/jira.env`);
   const legacyPath = resolve(cwd, 'Jira/config/jira.env');
@@ -95,9 +84,6 @@ function resolveAdoConfigPath(cwd: string): string {
   return `${WS_BASE}/ADO/config/ado.env`;
 }
 
-function resolveAdoConfigDir(cwd: string): string {
-  return resolve(cwd, `${WS_BASE}/ADO/config`);
-}
 
 /* ── Config encryption (AES-256-GCM) ──────────────────────────── */
 
@@ -4631,422 +4617,9 @@ async function loadGraphFromFile(cwd: string, graphPath: string): Promise<Workfl
 // First-run setup wizard
 // ---------------------------------------------------------------------------
 
-function isClaudeCliAvailable(): boolean {
-  try {
-    execSync('claude --version', { stdio: 'ignore', timeout: 5000 });
-    return true;
-  } catch {
-    return false;
-  }
-}
 
-/** Known corporate TLS-intercepting proxy CA cert names to search for in the system trust store */
-const PROXY_CA_NAMES = [
-  'Zscaler Root CA',
-  'Zscaler Intermediate Root CA',
-  'ZscalerRootCertificate',
-  'Netskope Root CA',
-  'Palo Alto Networks',
-  'Fortinet CA',
-  'Blue Coat',
-  'Symantec Class 3',
-];
 
-interface DiscoveredCert {
-  label: string;
-  pem: string;
-  source: 'keychain' | 'env' | 'file';
-}
 
-/**
- * Query the local machine's certificate trust store for known corporate proxy CAs.
- * On macOS: uses `security find-certificate` against the System keychain.
- * On Linux: checks common cert directories.
- * Also checks NODE_EXTRA_CA_CERTS and any existing certs/ folder in the project.
- */
-function discoverCaCerts(cwd: string): DiscoveredCert[] {
-  const found: DiscoveredCert[] = [];
-
-  // 1. macOS: query the system keychain for known proxy CA certs
-  if (process.platform === 'darwin') {
-    for (const name of PROXY_CA_NAMES) {
-      try {
-        const pem = execSync(
-          `security find-certificate -c ${JSON.stringify(name)} -p /Library/Keychains/System.keychain 2>/dev/null`,
-          { encoding: 'utf-8', timeout: 5000 },
-        ).trim();
-        if (pem.includes('BEGIN CERTIFICATE')) {
-          found.push({ label: `${name} (macOS System Keychain)`, pem, source: 'keychain' });
-        }
-      } catch { /* cert not in keychain — skip */ }
-    }
-  }
-
-  // 2. Linux: check common system cert directories
-  if (process.platform === 'linux') {
-    const certDirs = [
-      '/usr/local/share/ca-certificates',
-      '/etc/ssl/certs',
-      '/etc/pki/ca-trust/source/anchors',
-      '/etc/pki/tls/certs',
-    ];
-    for (const dir of certDirs) {
-      if (!existsSync(dir)) continue;
-      try {
-        for (const f of readdirSync(dir)) {
-          const lower = f.toLowerCase();
-          if (PROXY_CA_NAMES.some((n) => lower.includes(n.toLowerCase().replace(/\s+/g, '')))) {
-            const full = join(dir, f);
-            const content = readFileSync(full, 'utf-8');
-            if (content.includes('BEGIN CERTIFICATE')) {
-              found.push({ label: `${f} (${dir})`, pem: content.trim(), source: 'file' });
-            }
-          }
-        }
-      } catch { /* ignore */ }
-    }
-  }
-
-  // 3. NODE_EXTRA_CA_CERTS environment variable
-  const envCa = process.env.NODE_EXTRA_CA_CERTS;
-  if (envCa && existsSync(envCa)) {
-    try {
-      const content = readFileSync(resolve(envCa), 'utf-8');
-      if (content.includes('BEGIN CERTIFICATE')) {
-        found.push({ label: `${envCa} (NODE_EXTRA_CA_CERTS env)`, pem: content.trim(), source: 'env' });
-      }
-    } catch { /* ignore */ }
-  }
-
-  // 4. Any .pem/.crt files the user has already placed in the project's certs/ folder
-  const certsDir = resolve(cwd, 'certs');
-  if (existsSync(certsDir)) {
-    try {
-      for (const f of readdirSync(certsDir)) {
-        if (f.endsWith('.pem') || f.endsWith('.crt') || f.endsWith('.cer')) {
-          const content = readFileSync(join(certsDir, f), 'utf-8');
-          if (content.includes('BEGIN CERTIFICATE')) {
-            found.push({ label: `certs/${f} (project)`, pem: content.trim(), source: 'file' });
-          }
-        }
-      }
-    } catch { /* ignore */ }
-  }
-
-  // Deduplicate by PEM content (same cert may appear in multiple sources)
-  const seen = new Set<string>();
-  return found.filter((c) => {
-    const key = c.pem.replace(/\s+/g, '');
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-}
-
-/**
- * Save a discovered cert PEM to the project's certs/ folder and return the path.
- */
-function saveCertToProject(cwd: string, label: string, pem: string): string {
-  const certsDir = resolve(cwd, 'certs');
-  if (!existsSync(certsDir)) mkdirSync(certsDir, { recursive: true });
-
-  // Derive a filename from the label
-  const safeName = label
-    .replace(/\s*\(.*?\)\s*/g, '')      // strip source annotation
-    .trim()
-    .replace(/[^a-zA-Z0-9._-]+/g, '-')  // sanitise
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '')
-    .toLowerCase() || 'ca-cert';
-  const filename = `${safeName}.pem`;
-  const outPath = join(certsDir, filename);
-
-  writeFileSync(outPath, pem + '\n', 'utf-8');
-  return outPath;
-}
-
-async function promptCaCertPath(cwd: string): Promise<string> {
-  const certs = discoverCaCerts(cwd);
-
-  if (certs.length === 0) {
-    output.writeln('');
-    output.printInfo('No corporate proxy CA certificates detected on this machine.');
-    output.printInfo('If you are behind Zscaler or a similar proxy, you can provide the cert path manually.');
-    return await input({
-      message: 'CA Certificate Path (leave blank if not needed)',
-      default: '',
-    });
-  }
-
-  output.writeln('');
-  output.printSuccess(`Detected ${certs.length} CA certificate${certs.length > 1 ? 's' : ''} on this machine:`);
-  for (const c of certs) {
-    output.writeln(`  ${c.label}`);
-  }
-  output.writeln('');
-
-  const choices: Array<{ name: string; value: string }> = [
-    ...certs.map((c, i) => ({ name: c.label, value: String(i) })),
-    { name: 'Enter a custom path', value: '__custom__' },
-    { name: 'Skip (no CA certificate needed)', value: '' },
-  ];
-
-  const chosen = await select({
-    message: 'Select a CA certificate to use',
-    choices,
-  });
-
-  if (chosen === '') return '';
-
-  if (chosen === '__custom__') {
-    return await input({
-      message: 'Enter full path to your CA certificate (.pem / .crt)',
-      validate: (v: string) => {
-        if (!v) return true;
-        return existsSync(v) || `File not found: ${v}`;
-      },
-    });
-  }
-
-  // User selected a discovered cert — extract and save it to the project
-  const cert = certs[Number(chosen)];
-  const savedPath = saveCertToProject(cwd, cert.label, cert.pem);
-  output.printSuccess(`Saved certificate to ${relative(cwd, savedPath)}`);
-  return savedPath;
-}
-
-async function runSetup(cwd: string): Promise<{ success: boolean; exitCode?: number }> {
-  output.writeln('');
-  output.printInfo('╔══════════════════════════════════════════════╗');
-  output.printInfo('║   Workflow Studio — First-Run Setup Wizard   ║');
-  output.printInfo('╚══════════════════════════════════════════════╝');
-  output.writeln('');
-
-  // --- Check Node.js version ---
-  const nodeVersion = process.versions.node;
-  const nodeMajor = parseInt(nodeVersion.split('.')[0], 10);
-  if (nodeMajor >= 20) {
-    output.printSuccess(`Node.js v${nodeVersion} — OK`);
-  } else {
-    output.printError(`Node.js v${nodeVersion} detected — v20+ is required.`);
-    return { success: false, exitCode: 1 };
-  }
-
-  // --- Check Claude CLI ---
-  if (isClaudeCliAvailable()) {
-    output.printSuccess('Claude CLI — found on PATH');
-  } else {
-    output.printWarning(
-      'Claude CLI not found on PATH.\n' +
-      '  AI-powered workflow nodes (ai.runPrompt, ado.deepCodeSearch, etc.) require the `claude` binary.\n' +
-      '  Install via: npm install -g @anthropic-ai/claude-code\n' +
-      '  Or, if using AWS Bedrock: ensure `claude` is configured with `claude config set provider bedrock`.'
-    );
-    const proceed = await confirm({ message: 'Continue setup without Claude CLI?', default: true });
-    if (!proceed) {
-      return { success: false, exitCode: 1 };
-    }
-  }
-
-  // --- Jira config ---
-  const jiraConfigDir = resolveConfigDir(cwd, 'jira');
-  const jiraConfigPath = join(jiraConfigDir, 'jira.env');
-  const workflowDir = getWorkflowRoot(cwd);
-
-  let configureJira = true;
-  if (existsSync(jiraConfigPath)) {
-    output.printSuccess(`Jira config exists — ${relative(cwd, jiraConfigPath)}`);
-    configureJira = await confirm({ message: 'Reconfigure Jira credentials?', default: false });
-  } else {
-    output.writeln('');
-    output.printInfo('Jira configuration is required for ticket-based workflows.');
-    output.printInfo('You can generate an API token at:');
-    output.printInfo('  https://id.atlassian.com/manage-profile/security/api-tokens');
-    output.writeln('');
-  }
-
-  if (configureJira) {
-    const baseUrl = await input({
-      message: 'Jira Base URL',
-      default: 'https://<your-company-name>.atlassian.net',
-      validate: (v: string) => v.startsWith('http') || 'Must be a valid URL starting with http(s)://',
-    });
-
-    const email = await input({
-      message: 'Jira Email (e.g. you@company.com)',
-      validate: (v: string) => v.includes('@') || 'Must be a valid email address',
-    });
-
-    const apiToken = await password({
-      message: 'Jira API Token',
-      mask: '*',
-      validate: (v: string) => v.length > 0 || 'API token is required',
-    });
-
-    const caCertPath = await promptCaCertPath(cwd);
-
-    const aiModel = await input({
-      message: 'AI Model for Jira analysis',
-      default: 'anthropic.claude-sonnet-4-6',
-    });
-
-    // Write config (encrypted — same as the browser UI save endpoint)
-    if (!existsSync(jiraConfigDir)) mkdirSync(jiraConfigDir, { recursive: true });
-    writeConfigEncrypted(jiraConfigPath, cwd, {
-      JIRA_BASE_URL: baseUrl.replace(/\/+$/, ''),
-      JIRA_EMAIL: email,
-      JIRA_API_TOKEN: apiToken,
-      JIRA_CA_CERT_PATH: caCertPath,
-      JIRA_AI_MODEL: aiModel,
-    }, ['JIRA_BASE_URL', 'JIRA_EMAIL', 'JIRA_API_TOKEN', 'JIRA_CA_CERT_PATH', 'JIRA_AI_MODEL']);
-    output.printSuccess(`Saved Jira config to ${relative(cwd, jiraConfigPath)}`);
-
-    // Test connection
-    output.writeln('');
-    const testConnection = await confirm({ message: 'Test Jira connection now?', default: true });
-    if (testConnection) {
-      output.printInfo('Testing connection...');
-      try {
-        const auth = Buffer.from(`${email}:${apiToken}`).toString('base64');
-        const testUrl = new URL(`${baseUrl.replace(/\/+$/, '')}/rest/api/3/myself`);
-
-        let caCertPem: string | undefined;
-        if (caCertPath) {
-          const resolved = resolve(caCertPath);
-          if (existsSync(resolved)) caCertPem = readFileSync(resolved, 'utf-8');
-        }
-
-        const result = await new Promise<{ ok: boolean; display: string; error?: string }>((res) => {
-          const reqObj = httpsRequest(testUrl, {
-            method: 'GET',
-            headers: { Authorization: `Basic ${auth}`, Accept: 'application/json' },
-            ca: caCertPem,
-          }, (resp) => {
-            const chunks: Buffer[] = [];
-            resp.on('data', (c) => chunks.push(Buffer.isBuffer(c) ? c : Buffer.from(c)));
-            resp.on('end', () => {
-              const body = Buffer.concat(chunks).toString('utf-8');
-              if ((resp.statusCode || 0) >= 200 && (resp.statusCode || 0) < 300) {
-                try {
-                  const p = JSON.parse(body);
-                  res({ ok: true, display: p.displayName || p.emailAddress || 'Connected' });
-                } catch { res({ ok: true, display: 'Connected' }); }
-              } else {
-                res({ ok: false, display: '', error: `HTTP ${resp.statusCode}: ${body.slice(0, 200)}` });
-              }
-            });
-          });
-          reqObj.on('error', (err) => res({ ok: false, display: '', error: err.message }));
-          reqObj.setTimeout(10000, () => { reqObj.destroy(); res({ ok: false, display: '', error: 'Connection timed out' }); });
-          reqObj.end();
-        });
-
-        if (result.ok) {
-          output.printSuccess(`Connected as: ${result.display}`);
-        } else {
-          output.printWarning(`Connection failed: ${result.error}`);
-          output.printInfo('You can fix this later via the Jira Config button in the studio UI.');
-        }
-      } catch (err) {
-        output.printWarning(`Connection test error: ${err instanceof Error ? err.message : String(err)}`);
-      }
-    }
-  }
-
-  // --- Azure DevOps config ---
-  output.writeln('');
-  const adoConfigDir = resolveAdoConfigDir(cwd);
-  const adoConfigPath = join(adoConfigDir, 'ado.env');
-
-  let configureAdo = true;
-  if (existsSync(adoConfigPath)) {
-    output.printSuccess(`Azure DevOps config exists — ${relative(cwd, adoConfigPath)}`);
-    configureAdo = await confirm({ message: 'Reconfigure Azure DevOps credentials?', default: false });
-  } else {
-    output.printInfo('Azure DevOps configuration is required for ADO-powered workflows (code search, repo context, PR creation).');
-    output.printInfo('You can generate a Personal Access Token at:');
-    output.printInfo('  Azure DevOps > User Settings > Personal Access Tokens');
-    output.printInfo('  Scopes needed: Code (Read & Write), Pull Request Contribute');
-    const setupAdo = await confirm({ message: 'Configure Azure DevOps now?', default: true });
-    if (!setupAdo) configureAdo = false;
-  }
-
-  if (configureAdo) {
-    const adoOrgUrl = await input({
-      message: 'Azure DevOps Organization URL (e.g. https://dev.azure.com/myorg)',
-      validate: (v: string) => v.startsWith('http') || 'Must be a valid URL starting with http(s)://',
-    });
-
-    const adoPat = await password({
-      message: 'Azure DevOps Personal Access Token (PAT)',
-      mask: '*',
-      validate: (v: string) => v.length > 0 || 'PAT is required',
-    });
-
-    // Write ADO config (encrypted)
-    if (!existsSync(adoConfigDir)) mkdirSync(adoConfigDir, { recursive: true });
-    writeConfigEncrypted(adoConfigPath, cwd, {
-      AZURE_DEVOPS_ORG_URL: adoOrgUrl.replace(/\/+$/, ''),
-      AZURE_DEVOPS_PAT: adoPat,
-    }, ['AZURE_DEVOPS_ORG_URL', 'AZURE_DEVOPS_PAT']);
-    output.printSuccess(`Saved ADO config to ${relative(cwd, adoConfigPath)}`);
-
-    // Test ADO connection
-    output.writeln('');
-    const testAdoConnection = await confirm({ message: 'Test Azure DevOps connection now?', default: true });
-    if (testAdoConnection) {
-      output.printInfo('Testing connection...');
-      try {
-        const adoAuth = Buffer.from(`:${adoPat}`).toString('base64');
-        const orgClean = adoOrgUrl.replace(/\/+$/, '');
-        // Use the connection data API to verify PAT
-        const testUrl = new URL(`${orgClean}/_apis/connectionData?api-version=7.1-preview`);
-
-        const adoResult = await new Promise<{ ok: boolean; display: string; error?: string }>((res) => {
-          const reqObj = httpsRequest(testUrl, {
-            method: 'GET',
-            headers: { Authorization: `Basic ${adoAuth}`, Accept: 'application/json' },
-          }, (resp) => {
-            const chunks: Buffer[] = [];
-            resp.on('data', (c) => chunks.push(Buffer.isBuffer(c) ? c : Buffer.from(c)));
-            resp.on('end', () => {
-              const body = Buffer.concat(chunks).toString('utf-8');
-              if ((resp.statusCode || 0) >= 200 && (resp.statusCode || 0) < 300) {
-                try {
-                  const p = JSON.parse(body);
-                  const displayName = p.authenticatedUser?.providerDisplayName || p.authenticatedUser?.customDisplayName || 'Connected';
-                  res({ ok: true, display: displayName });
-                } catch { res({ ok: true, display: 'Connected' }); }
-              } else {
-                res({ ok: false, display: '', error: `HTTP ${resp.statusCode}: ${body.slice(0, 200)}` });
-              }
-            });
-          });
-          reqObj.on('error', (err) => res({ ok: false, display: '', error: err.message }));
-          reqObj.setTimeout(10000, () => { reqObj.destroy(); res({ ok: false, display: '', error: 'Connection timed out' }); });
-          reqObj.end();
-        });
-
-        if (adoResult.ok) {
-          output.printSuccess(`Connected as: ${adoResult.display}`);
-        } else {
-          output.printWarning(`Connection failed: ${adoResult.error}`);
-          output.printInfo('You can fix this later by re-running --setup.');
-        }
-      } catch (err) {
-        output.printWarning(`Connection test error: ${err instanceof Error ? err.message : String(err)}`);
-      }
-    }
-  }
-
-  // Ensure workflows dir
-  if (!existsSync(workflowDir)) mkdirSync(workflowDir, { recursive: true });
-  output.printSuccess(`Workflows directory ready — ${relative(cwd, workflowDir)}`);
-
-  output.writeln('');
-  output.printSuccess('Setup complete! Run `node dist/cli.js` to launch.');
-  return { success: true };
-}
 
 async function runGraphOnce(cwd: string, graphPath: string, varsRaw: string): Promise<void> {
   if (!graphPath) {
@@ -5070,7 +4643,6 @@ export interface StartOptions {
   port?: number;
   host?: string;
   debug?: boolean;
-  setup?: boolean;
   run?: boolean;
   graph?: string;
   vars?: string;
@@ -5083,11 +4655,6 @@ export async function startServer(opts: StartOptions = {}): Promise<void> {
     setWorkflowDebug(true);
   }
 
-  if (opts.setup) {
-    const result = await runSetup(cwd);
-    process.exit(result.success ? 0 : (result.exitCode ?? 1));
-  }
-
   // First-run detection
   const jiraEnvPath = resolve(cwd, resolveJiraConfigPath(cwd));
   const adoEnvPath = resolve(cwd, resolveAdoConfigPath(cwd));
@@ -5095,14 +4662,14 @@ export async function startServer(opts: StartOptions = {}): Promise<void> {
     output.printWarning(
       `Jira configuration not found (${resolveJiraConfigPath(cwd)}).\n` +
       '  Jira and AI-powered nodes will not work until configured.\n' +
-      '  Run: node dist/cli.js --setup'
+      '  Configure credentials via the Jira Config button in the browser UI.'
     );
   }
   if (!existsSync(adoEnvPath)) {
     output.printWarning(
       `Azure DevOps configuration not found (${resolveAdoConfigPath(cwd)}).\n` +
       '  ADO-powered nodes (code search, repo context, PR creation) will not work until configured.\n' +
-      '  Run: node dist/cli.js --setup'
+      '  Configure credentials via the ADO Config button in the browser UI.'
     );
   }
 

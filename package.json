@@ -3,27 +3,74 @@
   "version": "1.0.0-alpha.1",
   "description": "Node-based workflow studio for AI-powered Jira, Slack, and process composition",
   "type": "module",
-  "main": "dist/cli.js",
+  "main": "electron/main.js",
   "bin": {
     "workflow-studio": "./dist/cli.js"
   },
   "scripts": {
-    "build": "esbuild src/cli.ts --bundle --platform=node --format=esm --target=node20 --outdir=dist --external:readline --external:@inquirer/prompts && node -e \"const fs=require('fs');const f='dist/cli.js';fs.writeFileSync(f,'#!/usr/bin/env node\\n'+fs.readFileSync(f,'utf8'))\" && chmod +x dist/cli.js",
+    "build": "esbuild src/cli.ts --bundle --platform=node --format=esm --target=node20 --outdir=dist --external:readline && node -e \"const fs=require('fs');const f='dist/cli.js';fs.writeFileSync(f,'#!/usr/bin/env node\\n'+fs.readFileSync(f,'utf8'))\" && chmod +x dist/cli.js",
     "dev": "node --loader ts-node/esm src/cli.ts",
-    "start": "node dist/cli.js"
+    "start": "node dist/cli.js",
+    "icons": "node scripts/generate-icons.js",
+    "electron:dev": "npm run build && electron .",
+    "electron:pack": "npm run icons && npm run build && electron-builder --dir",
+    "electron:dist": "npm run icons && npm run build && electron-builder",
+    "electron:dist:mac": "npm run icons && npm run build && electron-builder --mac",
+    "electron:dist:win": "npm run icons && npm run build && electron-builder --win"
   },
   "engines": {
     "node": ">=20"
   },
   "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.0",
     "esbuild": "^0.24.0",
+    "sharp": "^0.33.0",
     "typescript": "^5.6.0"
   },
-  "dependencies": {
-    "@inquirer/prompts": "^7.0.0"
-  },
+  "dependencies": {},
   "files": [
     "dist"
   ],
+  "build": {
+    "appId": "com.workflowstudio.app",
+    "productName": "Workflow Studio",
+    "directories": {
+      "output": "release"
+    },
+    "extraResources": [
+      {
+        "from": "dist",
+        "to": "server/dist",
+        "filter": ["**/*"]
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["universal"]
+        }
+      ],
+      "icon": "assets/icon.icns"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  },
   "license": "MIT"
 }
