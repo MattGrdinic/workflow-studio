@@ -4674,14 +4674,17 @@ function buildStudioHtml(): string {
       resultEl.textContent = 'Failed to load metadata: ' + String(error);
     });
 
-    function showWelcomeBanner() {
+    window.showWelcomeBanner = function() {
       document.getElementById('welcomeBanner').style.display = 'block';
-    }
+    };
+    window.showJiraConfigModal = showJiraConfigModal;
+    window.showAdoConfigModal = showAdoConfigModal;
+    window.showSlackConfigModal = showSlackConfigModal;
 
     async function checkStartupHealth() {
       // Show welcome banner on first launch
       if (!localStorage.getItem('ws_welcome_dismissed')) {
-        showWelcomeBanner();
+        window.showWelcomeBanner();
       }
 
       // Check Claude CLI status — re-check every 30s while banner is visible
