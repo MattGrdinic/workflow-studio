@@ -2060,7 +2060,7 @@ export const AI_CODE_REVIEWER_TEMPLATE: WorkflowGraph = {
     { from: 'refine', to: 'save' },
   ],
   variables: {
-    codePath: 'src/server.ts',
+    codePath: '',
     model: 'sonnet',
     outputPath: 'data/Output/code-review.md',
   },

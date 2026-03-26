@@ -306,7 +306,7 @@ function buildStudioHtml(): string {
     input:hover:not(:focus), select:hover:not(:focus), textarea:hover:not(:focus) { border-color: #4f5a73; }
     textarea { min-height: 140px; resize: vertical; }
     .panel-right textarea { min-height: 160px; }
-    .toolbar { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 8px; }
+    .toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
     .toolbar-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     .muted { color: #a6adbd; font-size: 12px; }
     .field-label-row { display: flex; align-items: center; gap: 5px; margin-top: 8px; }
@@ -409,6 +409,9 @@ function buildStudioHtml(): string {
     @keyframes toastIn { to { opacity: 1; transform: translateY(0); } }
     @keyframes toastOut { to { opacity: 0; transform: translateY(-10px); } }
     kbd { background: #1a1f2e; padding: 1px 5px; border-radius: 3px; border: 1px solid #343a4d; font-size: 10px; font-family: inherit; }
+    .modal-close { background: none; border: none; color: #8f98af; font-size: 18px; cursor: pointer; padding: 2px 6px; border-radius: 4px; transition: color 0.15s, background 0.15s; }
+    .modal-close:hover { color: #e8eaf0; background: #2f3442; }
+    .modal-close:focus-visible { outline: 2px solid #69a0ff; outline-offset: 2px; }
   </style>
 </head>
 <body>
@@ -435,7 +438,7 @@ function buildStudioHtml(): string {
       <div style="display:flex;justify-content:space-between;align-items:flex-start;">
         <div>
           <h1 style="margin-bottom:2px;">Workflow Studio</h1>
-          <div class="muted">Drag nodes, wire edges explicitly, then save/load and run.</div>
+          <div class="muted">Build AI-powered workflows visually — connect nodes, configure, and run.</div>
         </div>
         <div style="position:relative;">
           <button onclick="showWelcomeBanner()" class="secondary" style="font-size:11px;padding:4px 10px;white-space:nowrap;">Setup</button>
@@ -450,7 +453,7 @@ function buildStudioHtml(): string {
               <div style="color:#a6adbd;margin-bottom:2px;font-size:11px;">macOS: drag Workflow Studio.app to Trash, then run:</div>
               <code style="display:block;background:#0f1117;padding:6px 8px;border-radius:4px;font-size:11px;color:#69a0ff;margin-bottom:6px;word-break:break-all;">rm -rf ~/Library/Application\\ Support/Workflow\\ Studio</code>
               <div style="color:#a6adbd;margin-bottom:2px;font-size:11px;">Windows: use Add/Remove Programs, then delete:</div>
-              <code style="display:block;background:#0f1117;padding:6px 8px;border-radius:4px;font-size:11px;color:#69a0ff;margin-bottom:10px;word-break:break-all;">%APPDATA%\\Workflow Studio</code>
+              <code style="display:block;background:#0f1117;padding:6px 8px;border-radius:4px;font-size:11px;color:#69a0ff;margin-bottom:10px;word-break:break-all;">%APPDATA%\\workflow-studio</code>
               <div style="color:#a6adbd;margin-bottom:6px;font-size:11px;font-weight:600;">CLI install (install.sh):</div>
               <code style="display:block;background:#0f1117;padding:6px 8px;border-radius:4px;font-size:11px;color:#69a0ff;margin-bottom:6px;word-break:break-all;">sudo rm -rf /usr/local/lib/workflow-studio /usr/local/bin/workflow-studio</code>
               <div style="color:#a6adbd;margin-bottom:6px;font-size:11px;font-weight:600;">CLI install (install.ps1):</div>
@@ -467,18 +470,18 @@ function buildStudioHtml(): string {
       <div id="claudeBanner" style="display:none;padding:10px 14px;border-radius:8px;margin-bottom:8px;font-size:13px;line-height:1.5;"></div>
 
       <!-- First-run welcome banner -->
-      <div id="welcomeBanner" style="display:none;padding:14px 18px;background:rgb(75 28 48);border:1px solid #343a4d;border-radius:8px;margin-bottom:8px;font-size:13px;line-height:1.6;">
+      <div id="welcomeBanner" style="display:none;padding:16px 20px;background:linear-gradient(135deg, #1a2540 0%, #1e2a45 100%);border:1px solid #2a3556;border-left:3px solid #4f7cff;border-radius:8px;margin-bottom:8px;font-size:13px;line-height:1.6;">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-          <div>
-            <div style="font-weight:600;color:#e8eaf0;margin-bottom:6px;">Welcome to Workflow Studio</div>
-            <div style="color:#a6adbd;margin-bottom:10px;">To get started, connect at least one external service:</div>
+          <div style="flex:1;">
+            <div style="font-weight:600;color:#e8eaf0;margin-bottom:4px;font-size:15px;">Welcome to Workflow Studio</div>
+            <div style="color:#a6adbd;margin-bottom:12px;">Connect a service to get started, or try a template from the left panel — no credentials needed for Getting Started workflows.</div>
             <div style="display:flex;gap:8px;flex-wrap:wrap;">
-              <button onclick="document.getElementById('welcomeBanner').style.display='none';showJiraConfigModal();" style="padding:6px 14px;font-size:12px;background:#4f7cff;color:#fff;border:none;border-radius:6px;cursor:pointer;">Configure Jira</button>
-              <button onclick="document.getElementById('welcomeBanner').style.display='none';showAdoConfigModal();" style="padding:6px 14px;font-size:12px;background:#1a1f2e;color:#a6adbd;border:1px solid #343a4d;border-radius:6px;cursor:pointer;">Configure Azure DevOps</button>
-              <button onclick="document.getElementById('welcomeBanner').style.display='none';showSlackConfigModal();" style="padding:6px 14px;font-size:12px;background:#1a1f2e;color:#a6adbd;border:1px solid #343a4d;border-radius:6px;cursor:pointer;">Configure Slack</button>
-              <button onclick="localStorage.setItem('ws_welcome_dismissed','1');document.getElementById('welcomeBanner').style.display='none';" style="padding:6px 14px;font-size:12px;background:transparent;color:#6b7394;border:none;cursor:pointer;">Dismiss</button>
+              <button onclick="document.getElementById('welcomeBanner').style.display='none';showJiraConfigModal();" style="padding:6px 14px;font-size:12px;background:#4f7cff;color:#fff;border:none;border-radius:6px;cursor:pointer;transition:background 0.15s;">Configure Jira</button>
+              <button onclick="document.getElementById('welcomeBanner').style.display='none';showAdoConfigModal();" style="padding:6px 14px;font-size:12px;background:#1a1f2e;color:#a6adbd;border:1px solid #343a4d;border-radius:6px;cursor:pointer;transition:background 0.15s;">Configure Azure DevOps</button>
+              <button onclick="document.getElementById('welcomeBanner').style.display='none';showSlackConfigModal();" style="padding:6px 14px;font-size:12px;background:#1a1f2e;color:#a6adbd;border:1px solid #343a4d;border-radius:6px;cursor:pointer;transition:background 0.15s;">Configure Slack</button>
             </div>
           </div>
+          <button onclick="localStorage.setItem('ws_welcome_dismissed','1');document.getElementById('welcomeBanner').style.display='none';" style="background:none;border:none;color:#6b7394;font-size:18px;cursor:pointer;padding:0 4px;margin-left:12px;transition:color 0.15s;" aria-label="Dismiss welcome banner">&times;</button>
         </div>
       </div>
 
@@ -487,7 +490,7 @@ function buildStudioHtml(): string {
         <button id="stopBtn" class="danger" style="display:none;">Stop</button>
         <button id="saveBtn" class="secondary">Save Workflow</button>
         <button id="reloadBtn" class="secondary">Refresh Saved List</button>
-        <button id="notifSettingsBtn" class="secondary" title="Notification settings" style="margin-left:auto;font-size:13px;">&#128276; Notifications</button>
+        <button id="notifSettingsBtn" class="secondary" title="Notification settings" aria-label="Notification settings" style="margin-left:auto;font-size:13px;">&#128276; Notifications</button>
       </div>
 
       <div class="canvas-wrap card">
@@ -495,11 +498,11 @@ function buildStudioHtml(): string {
           <svg id="edges" class="edges"></svg>
         </div>
         <div class="zoom-controls">
-          <button id="zoomOutBtn" title="Zoom out">−</button>
+          <button id="zoomOutBtn" title="Zoom out" aria-label="Zoom out">−</button>
           <span id="zoomLabel" class="zoom-label">100%</span>
-          <button id="zoomInBtn" title="Zoom in">+</button>
-          <button id="zoomFitBtn" title="Fit to view" style="font-size:11px;padding:4px 6px;">Fit</button>
-          <button id="zoomResetBtn" title="Reset zoom" style="font-size:11px;padding:4px 6px;">1:1</button>
+          <button id="zoomInBtn" title="Zoom in" aria-label="Zoom in">+</button>
+          <button id="zoomFitBtn" title="Fit to view" aria-label="Fit to view" style="font-size:11px;padding:4px 6px;">Fit</button>
+          <button id="zoomResetBtn" title="Reset zoom" aria-label="Reset zoom" style="font-size:11px;padding:4px 6px;">1:1</button>
         </div>
       </div>
       <div class="muted" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px;">
@@ -515,7 +518,7 @@ function buildStudioHtml(): string {
 
         <div id="outputTabPanel">
           <div id="outputMeta" class="muted">No output loaded yet.</div>
-          <div class="toolbar-2" style="margin-top:8px;">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:8px;">
             <button id="previewBtn" class="secondary">Preview</button>
             <button id="rawBtn" class="secondary">Raw</button>
             <button id="downloadOutputBtn" class="secondary" title="Download output as file">Download</button>
@@ -612,7 +615,7 @@ function buildStudioHtml(): string {
     <div style="width:440px; max-width:90vw; background:#151925; border:1px solid #3a4257; border-radius:12px; display:flex; flex-direction:column; box-shadow:0 16px 48px rgba(0,0,0,0.6);">
       <div style="padding:16px 20px; border-bottom:1px solid #272b36; display:flex; justify-content:space-between; align-items:center;">
         <h3 style="margin:0; color:#e8eaf0; font-size:15px;">Notification Settings</h3>
-        <button id="notifModalClose" style="background:none; border:none; color:#8f98af; font-size:18px; cursor:pointer; padding:0 4px;">&times;</button>
+        <button id="notifModalClose" class="modal-close" aria-label="Close notification settings">&times;</button>
       </div>
       <div style="padding:20px;">
         <label style="display:flex; align-items:center; gap:10px; margin-bottom:16px; cursor:pointer;">
@@ -646,7 +649,7 @@ function buildStudioHtml(): string {
     <div style="width:680px; max-width:90vw; max-height:85vh; background:#151925; border:1px solid #3a4257; border-radius:12px; display:flex; flex-direction:column; box-shadow:0 16px 48px rgba(0,0,0,0.6);">
       <div style="padding:16px 20px; border-bottom:1px solid #272b36; display:flex; justify-content:space-between; align-items:center;">
         <h3 style="margin:0; color:#e8eaf0; font-size:15px;">Preflight Check</h3>
-        <button id="preflightClose" style="background:none; border:none; color:#8f98af; font-size:18px; cursor:pointer; padding:0 4px;">&times;</button>
+        <button id="preflightClose" class="modal-close" aria-label="Close preflight check">&times;</button>
       </div>
       <div id="preflightContent" style="flex:1; overflow-y:auto; padding:16px 20px; min-height:200px; max-height:65vh;"></div>
       <div style="padding:12px 20px; border-top:1px solid #272b36; display:flex; justify-content:flex-end; gap:8px;">
@@ -660,7 +663,7 @@ function buildStudioHtml(): string {
     <div style="width:560px; max-width:90vw; background:#151925; border:1px solid #3a4257; border-radius:12px; display:flex; flex-direction:column; box-shadow:0 16px 48px rgba(0,0,0,0.6);">
       <div style="padding:16px 20px; border-bottom:1px solid #272b36; display:flex; justify-content:space-between; align-items:center;">
         <h3 style="margin:0; color:#e8eaf0; font-size:15px;">Jira Configuration</h3>
-        <button id="jiraConfigClose" style="background:none; border:none; color:#8f98af; font-size:18px; cursor:pointer; padding:0 4px;">&times;</button>
+        <button id="jiraConfigClose" class="modal-close" aria-label="Close Jira configuration">&times;</button>
       </div>
       <div style="padding:20px; overflow-y:auto; max-height:70vh;">
         <div id="jiraConfigError" style="display:none; background:#3d1a1a; border:1px solid #ff4444; border-radius:8px; padding:12px 16px; margin-bottom:14px; color:#ff8888; font-size:13px;"></div>
@@ -704,7 +707,7 @@ function buildStudioHtml(): string {
     <div style="width:560px; max-width:90vw; background:#151925; border:1px solid #3a4257; border-radius:12px; display:flex; flex-direction:column; box-shadow:0 16px 48px rgba(0,0,0,0.6);">
       <div style="padding:16px 20px; border-bottom:1px solid #272b36; display:flex; justify-content:space-between; align-items:center;">
         <h3 style="margin:0; color:#e8eaf0; font-size:15px;">Azure DevOps Configuration</h3>
-        <button id="adoConfigClose" style="background:none; border:none; color:#8f98af; font-size:18px; cursor:pointer; padding:0 4px;">&times;</button>
+        <button id="adoConfigClose" class="modal-close" aria-label="Close Azure DevOps configuration">&times;</button>
       </div>
       <div style="padding:20px; overflow-y:auto; max-height:70vh;">
         <div id="adoConfigError" style="display:none; background:#3d1a1a; border:1px solid #ff4444; border-radius:8px; padding:12px 16px; margin-bottom:14px; color:#ff8888; font-size:13px;"></div>
@@ -737,7 +740,7 @@ function buildStudioHtml(): string {
     <div style="width:560px; max-width:90vw; background:#151925; border:1px solid #3a4257; border-radius:12px; display:flex; flex-direction:column; box-shadow:0 16px 48px rgba(0,0,0,0.6);">
       <div style="padding:16px 20px; border-bottom:1px solid #272b36; display:flex; justify-content:space-between; align-items:center;">
         <h3 style="margin:0; color:#e8eaf0; font-size:15px;">Slack Configuration</h3>
-        <button id="slackConfigClose" style="background:none; border:none; color:#8f98af; font-size:18px; cursor:pointer; padding:0 4px;">&times;</button>
+        <button id="slackConfigClose" class="modal-close" aria-label="Close Slack configuration">&times;</button>
       </div>
       <div style="padding:20px; overflow-y:auto; max-height:70vh;">
         <div id="slackConfigError" style="display:none; background:#3d1a1a; border:1px solid #ff4444; border-radius:8px; padding:12px 16px; margin-bottom:14px; color:#ff8888; font-size:13px;"></div>
@@ -776,7 +779,7 @@ function buildStudioHtml(): string {
     <div style="width:820px; max-width:92vw; height:75vh; max-height:85vh; background:#151925; border:1px solid #3a4257; border-radius:12px; display:flex; flex-direction:column; box-shadow:0 16px 48px rgba(0,0,0,0.6);">
       <div style="padding:16px 20px; border-bottom:1px solid #272b36; display:flex; justify-content:space-between; align-items:center;">
         <h3 style="margin:0; color:#e8eaf0; font-size:15px;">Prompt Library</h3>
-        <button id="promptPickerClose" style="background:none; border:none; color:#8f98af; font-size:18px; cursor:pointer; padding:0 4px;">&times;</button>
+        <button id="promptPickerClose" class="modal-close" aria-label="Close prompt library">&times;</button>
       </div>
       <div style="padding:10px 20px 0; border-bottom:1px solid #272b36;">
         <input id="promptPickerSearch" class="prompt-picker-search" type="text" placeholder="Search prompts..." />

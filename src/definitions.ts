@@ -1067,11 +1067,11 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
       },
       {
         key: 'message',
-        label: 'Message body (supports Slack mrkdwn)',
+        label: 'Message body (supports Slack markdown)',
         type: 'text',
         required: true,
         placeholder: '{{synthesize.text}}',
-        hint: 'The message text to post. Supports Slack mrkdwn formatting. Use {{nodeId.field}} to inject upstream output.',
+        hint: 'The message text to post. Supports Slack markdown formatting (*bold*, _italic_, ~strike~, `code`). Use {{nodeId.field}} to inject upstream output.',
       },
       {
         key: 'username',
@@ -1170,8 +1170,8 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   {
     type: 'conditional.gate',
     title: 'Conditional Gate',
-    description: 'Passes or blocks data flow based on a condition. Evaluates a simple expression against upstream output and either forwards the data or returns an empty result.',
-    useCase: 'Branch your workflow — e.g. only create tickets if the AI found issues, only send Slack alerts if severity is high, or skip PR creation in dry-run mode.',
+    description: 'Passes or blocks data flow based on a condition. Evaluates a simple expression against upstream output and either forwards the data or returns an empty result. Downstream nodes connected to a blocked gate will receive empty/null output.',
+    useCase: 'Create conditional branches — e.g. only create tickets if the AI found issues, only send Slack alerts if severity is high, or skip PR creation in dry-run mode. Downstream nodes should handle the case where this gate blocks (empty input).',
     category: 'logic',
     configSchema: [
       {
