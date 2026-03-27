@@ -1,0 +1,49 @@
+trigger: none
+
+pr:
+  branches:
+    include:
+      - main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  nodeVersion: '20'
+
+steps:
+  - task: NodeTool@0
+    inputs:
+      versionSpec: $(nodeVersion)
+    displayName: 'Use Node.js $(nodeVersion)'
+
+  - script: npm ci
+    displayName: 'Install dependencies'
+
+  - script: npm run build
+    displayName: 'Build'
+
+  - script: npx vitest run --coverage
+    displayName: 'Run tests with coverage'
+
+  - task: PublishTestResults@2
+    condition: always()
+    inputs:
+      testResultsFormat: 'JUnit'
+      testResultsFiles: 'coverage/junit.xml'
+      mergeTestResults: true
+    displayName: 'Publish test results'
+    continueOnError: true
+
+  - task: PublishCodeCoverageResults@2
+    condition: always()
+    inputs:
+      summaryFileLocation: 'coverage/cobertura-coverage.xml'
+      pathToSources: 'src'
+    displayName: 'Publish code coverage'
+    continueOnError: true
+
+  - publish: coverage
+    artifact: coverage-report
+    condition: always()
+    displayName: 'Upload coverage artifact'

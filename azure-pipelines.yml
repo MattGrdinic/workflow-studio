@@ -1,0 +1,197 @@
+trigger:
+  branches:
+    include:
+      - main
+
+pr: none
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  nodeVersion: '20'
+
+stages:
+  # --- Run tests first ---
+  - stage: Test
+    displayName: 'Test'
+    jobs:
+      - job: test
+        displayName: 'Run Tests'
+        steps:
+          - task: NodeTool@0
+            inputs:
+              versionSpec: $(nodeVersion)
+            displayName: 'Use Node.js $(nodeVersion)'
+
+          - script: npm ci
+            displayName: 'Install dependencies'
+
+          - script: npm run build
+            displayName: 'Build'
+
+          - script: npx vitest run --coverage
+            displayName: 'Run tests with coverage'
+
+          - task: PublishTestResults@2
+            condition: always()
+            inputs:
+              testResultsFormat: 'JUnit'
+              testResultsFiles: 'coverage/junit.xml'
+              mergeTestResults: true
+            displayName: 'Publish test results'
+            continueOnError: true
+
+          - task: PublishCodeCoverageResults@2
+            condition: always()
+            inputs:
+              summaryFileLocation: 'coverage/cobertura-coverage.xml'
+              pathToSources: 'src'
+            displayName: 'Publish code coverage'
+            continueOnError: true
+
+          - publish: coverage
+            artifact: coverage-report
+            condition: always()
+            displayName: 'Upload coverage artifact'
+
+  # --- Determine version and tag ---
+  - stage: Tag
+    displayName: 'Tag Version'
+    dependsOn: Test
+    jobs:
+      - job: tag
+        displayName: 'Create Tag'
+        steps:
+          - checkout: self
+            fetchDepth: 0
+            persistCredentials: true
+
+          - task: NodeTool@0
+            inputs:
+              versionSpec: $(nodeVersion)
+            displayName: 'Use Node.js $(nodeVersion)'
+
+          - script: |
+              VERSION=$(node -p "require('./package.json').version")
+              TAG="v${VERSION}"
+              echo "##vso[task.setvariable variable=VERSION;isOutput=true]$VERSION"
+              echo "##vso[task.setvariable variable=TAG;isOutput=true]$TAG"
+              if git rev-parse "$TAG" >/dev/null 2>&1; then
+                echo "Tag $TAG already exists, skipping release"
+                echo "##vso[task.setvariable variable=SKIPPED;isOutput=true]true"
+              else
+                echo "Will create tag $TAG"
+                echo "##vso[task.setvariable variable=SKIPPED;isOutput=true]false"
+              fi
+            name: version
+            displayName: 'Determine version'
+
+          - script: |
+              git config user.email "pipeline@dev.azure.com"
+              git config user.name "Azure Pipelines"
+              git tag $(version.TAG)
+              git push origin $(version.TAG)
+            condition: eq(variables['version.SKIPPED'], 'false')
+            displayName: 'Create and push tag'
+
+  # --- Build macOS ---
+  - stage: BuildMac
+    displayName: 'Build macOS'
+    dependsOn: Tag
+    condition: eq(stageDependencies.Tag.tag.outputs['version.SKIPPED'], 'false')
+    jobs:
+      - job: mac
+        displayName: 'Electron macOS'
+        pool:
+          vmImage: 'macos-latest'
+        steps:
+          - task: NodeTool@0
+            inputs:
+              versionSpec: $(nodeVersion)
+            displayName: 'Use Node.js $(nodeVersion)'
+
+          - script: npm ci
+            displayName: 'Install dependencies'
+
+          - script: npm run icons
+            displayName: 'Generate icons'
+
+          - script: npm run build
+            displayName: 'Build server'
+
+          - script: npx electron-builder --mac --publish never
+            displayName: 'Build Electron (macOS)'
+            env:
+              CSC_LINK: $(CSC_LINK)
+              CSC_KEY_PASSWORD: $(CSC_KEY_PASSWORD)
+              APPLE_ID: $(APPLE_ID)
+              APPLE_APP_SPECIFIC_PASSWORD: $(APPLE_APP_SPECIFIC_PASSWORD)
+              APPLE_TEAM_ID: $(APPLE_TEAM_ID)
+
+          - publish: release
+            artifact: mac-builds
+            displayName: 'Upload macOS artifacts'
+
+  # --- Build Windows ---
+  - stage: BuildWin
+    displayName: 'Build Windows'
+    dependsOn: Tag
+    condition: eq(stageDependencies.Tag.tag.outputs['version.SKIPPED'], 'false')
+    jobs:
+      - job: win
+        displayName: 'Electron Windows'
+        pool:
+          vmImage: 'windows-latest'
+        steps:
+          - task: NodeTool@0
+            inputs:
+              versionSpec: $(nodeVersion)
+            displayName: 'Use Node.js $(nodeVersion)'
+
+          - script: npm ci
+            displayName: 'Install dependencies'
+
+          - script: npm run icons
+            displayName: 'Generate icons'
+
+          - script: npm run build
+            displayName: 'Build server'
+
+          - script: npx electron-builder --win --publish never
+            displayName: 'Build Electron (Windows)'
+
+          - publish: release
+            artifact: win-builds
+            displayName: 'Upload Windows artifacts'
+
+  # --- Create Release ---
+  - stage: Release
+    displayName: 'Create Release'
+    dependsOn:
+      - Tag
+      - BuildMac
+      - BuildWin
+    condition: eq(stageDependencies.Tag.tag.outputs['version.SKIPPED'], 'false')
+    jobs:
+      - job: release
+        displayName: 'Publish Release'
+        variables:
+          TAG: $[stageDependencies.Tag.tag.outputs['version.TAG']]
+          VERSION: $[stageDependencies.Tag.tag.outputs['version.VERSION']]
+        steps:
+          - download: current
+            artifact: mac-builds
+            displayName: 'Download macOS artifacts'
+
+          - download: current
+            artifact: win-builds
+            displayName: 'Download Windows artifacts'
+
+          - script: |
+              echo "Release $(TAG) — artifacts downloaded"
+              echo "Mac builds:"
+              ls -la $(Pipeline.Workspace)/mac-builds/ || true
+              echo "Win builds:"
+              ls -la $(Pipeline.Workspace)/win-builds/ || true
+            displayName: 'List release artifacts'
